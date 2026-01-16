@@ -84,7 +84,7 @@ class SettingsKV(Base):
     )
 
     scope_type: Mapped[SettingsScopeType] = mapped_column(
-        Enum(SettingsScopeType),
+        Enum(SettingsScopeType, create_type=False),
         nullable=False,
     )
 
@@ -181,7 +181,7 @@ class SSOProvider(Base):
     )
 
     scope_type: Mapped[SettingsScopeType] = mapped_column(
-        Enum(SettingsScopeType),
+        Enum(SettingsScopeType, create_type=False),
         default=SettingsScopeType.SYSTEM,
         nullable=False,
     )
@@ -192,13 +192,13 @@ class SSOProvider(Base):
     )
 
     domain: Mapped[AuthDomainType] = mapped_column(
-        Enum(AuthDomainType),
+        Enum(AuthDomainType, create_type=False),
         default=AuthDomainType.ADMIN,
         nullable=False,
     )
 
     provider_type: Mapped[SSOProviderType] = mapped_column(
-        Enum(SSOProviderType),
+        Enum(SSOProviderType, create_type=False),
         nullable=False,
     )
 
@@ -308,12 +308,12 @@ class AuthPolicy(Base):
     )
 
     domain: Mapped[AuthDomainType] = mapped_column(
-        Enum(AuthDomainType),
+        Enum(AuthDomainType, create_type=False),
         nullable=False,
     )
 
     scope_type: Mapped[SettingsScopeType] = mapped_column(
-        Enum(SettingsScopeType),
+        Enum(SettingsScopeType, create_type=False),
         default=SettingsScopeType.SYSTEM,
         nullable=False,
     )
@@ -507,7 +507,7 @@ class BrandingSettings(Base):
     )
 
     scope_type: Mapped[SettingsScopeType] = mapped_column(
-        Enum(SettingsScopeType),
+        Enum(SettingsScopeType, create_type=False),
         default=SettingsScopeType.SYSTEM,
         nullable=False,
     )
@@ -628,7 +628,7 @@ class NotificationChannel(Base):
     )
 
     scope_type: Mapped[SettingsScopeType] = mapped_column(
-        Enum(SettingsScopeType),
+        Enum(SettingsScopeType, create_type=False),
         default=SettingsScopeType.SYSTEM,
         nullable=False,
     )
@@ -639,7 +639,7 @@ class NotificationChannel(Base):
     )
 
     channel_type: Mapped[NotificationChannelType] = mapped_column(
-        Enum(NotificationChannelType),
+        Enum(NotificationChannelType, create_type=False),
         nullable=False,
     )
 
@@ -737,7 +737,7 @@ class NotificationSubscription(Base):
     )
 
     scope_type: Mapped[SettingsScopeType] = mapped_column(
-        Enum(SettingsScopeType),
+        Enum(SettingsScopeType, create_type=False),
         nullable=False,
     )
 
@@ -830,7 +830,7 @@ class SecurityPolicy(Base):
     )
 
     scope_type: Mapped[SettingsScopeType] = mapped_column(
-        Enum(SettingsScopeType),
+        Enum(SettingsScopeType, create_type=False),
         default=SettingsScopeType.SYSTEM,
         nullable=False,
     )
@@ -1031,7 +1031,7 @@ class SettingsAuditLog(Base):
     )
 
     scope_type: Mapped[SettingsScopeType] = mapped_column(
-        Enum(SettingsScopeType),
+        Enum(SettingsScopeType, create_type=False),
         nullable=False,
     )
 
@@ -1204,7 +1204,7 @@ class FeatureFlag(Base):
     )
 
     scope_type: Mapped[SettingsScopeType] = mapped_column(
-        Enum(SettingsScopeType),
+        Enum(SettingsScopeType, create_type=False),
         default=SettingsScopeType.SYSTEM,
         nullable=False,
     )

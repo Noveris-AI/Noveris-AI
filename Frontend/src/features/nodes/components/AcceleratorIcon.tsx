@@ -2,6 +2,7 @@
  * Accelerator Icons Component
  */
 
+import { useTranslation } from 'react-i18next'
 import type { AcceleratorType } from '../api/nodeManagementTypes'
 
 interface AcceleratorIconProps {
@@ -11,35 +12,33 @@ interface AcceleratorIconProps {
   count?: number
 }
 
-const acceleratorConfig: Record<AcceleratorType, { label: string; color: string; shortLabel: string }> = {
+/**
+ * Configuration-driven accelerator type display
+ * Maps each AcceleratorType to its visual properties
+ */
+const ACCELERATOR_CONFIG: Record<AcceleratorType, { shortLabel: string; color: string }> = {
   nvidia_gpu: {
-    label: 'NVIDIA GPU',
     shortLabel: 'NVIDIA',
     color: 'text-green-600 dark:text-green-400',
   },
   amd_gpu: {
-    label: 'AMD GPU',
     shortLabel: 'AMD',
     color: 'text-red-600 dark:text-red-400',
   },
   intel_gpu: {
-    label: 'Intel GPU',
     shortLabel: 'Intel',
     color: 'text-blue-600 dark:text-blue-400',
   },
-  huawei_npu: {
-    label: 'Huawei Ascend NPU',
+  ascend_npu: {
     shortLabel: 'Ascend',
     color: 'text-rose-600 dark:text-rose-400',
   },
-  thead_npu: {
-    label: 'T-Head NPU',
+  t_head_npu: {
     shortLabel: 'T-Head',
     color: 'text-violet-600 dark:text-violet-400',
   },
-  other: {
-    label: 'Other Accelerator',
-    shortLabel: 'Other',
+  generic_accel: {
+    shortLabel: 'Generic',
     color: 'text-stone-600 dark:text-stone-400',
   },
 }
@@ -57,9 +56,25 @@ const GpuIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
+/**
+ * Helper function for exhaustiveness checking
+ * TypeScript will error if a new AcceleratorType is added but not handled
+ */
+function assertNever(value: never): never {
+  throw new Error(`Unhandled accelerator type: ${value}`)
+}
+
 export function AcceleratorIcon({ type, size = 'md', showLabel = false, count }: AcceleratorIconProps) {
-  const config = acceleratorConfig[type]
-  if (!config) return null
+  const { t } = useTranslation()
+
+  const config = ACCELERATOR_CONFIG[type]
+
+  // Exhaustiveness check: TypeScript will error if a case is missing
+  if (!config) {
+    // This should never happen if all AcceleratorType values are in ACCELERATOR_CONFIG
+    assertNever(type as never)
+    return null
+  }
 
   const sizeClasses = {
     sm: 'w-4 h-4',
@@ -67,8 +82,11 @@ export function AcceleratorIcon({ type, size = 'md', showLabel = false, count }:
     lg: 'w-6 h-6',
   }
 
+  // Get translated label from i18n
+  const fullLabel = t(`nodes.accelerators.${type}`, config.shortLabel)
+
   return (
-    <span className={`inline-flex items-center gap-1 ${config.color}`} title={config.label}>
+    <span className={`inline-flex items-center gap-1 ${config.color}`} title={fullLabel}>
       <GpuIcon className={sizeClasses[size]} />
       {showLabel && (
         <span className="text-xs font-medium">{config.shortLabel}</span>
@@ -86,12 +104,13 @@ interface AcceleratorSummaryProps {
 }
 
 export function AcceleratorSummary({ summary, size = 'md' }: AcceleratorSummaryProps) {
+  const { t } = useTranslation()
   const entries = Object.entries(summary).filter(([_, count]) => count > 0)
 
   if (entries.length === 0) {
     return (
       <span className="text-xs text-stone-400 dark:text-stone-500">
-        无加速器
+        {t('nodes.accelerators.none', '无加速器')}
       </span>
     )
   }

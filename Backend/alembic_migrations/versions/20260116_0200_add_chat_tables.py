@@ -213,7 +213,7 @@ def upgrade() -> None:
                   sa.ForeignKey('chat_conversations.id', ondelete='CASCADE'), nullable=False),
 
         # Message role
-        sa.Column('role', sa.Enum(
+        sa.Column('role', postgresql.ENUM(
             'user', 'assistant', 'tool', 'system',
             name='chat_message_role', create_type=False
         ), nullable=False),
@@ -361,7 +361,8 @@ def upgrade() -> None:
     # Using pgvector for vector storage
     # =========================================================================
     # First, ensure pgvector extension is available
-    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
+    # TODO: Uncomment when pgvector is installed
+    # op.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
     op.create_table(
         'chat_doc_embeddings',
@@ -496,7 +497,7 @@ def upgrade() -> None:
         sa.Column('description', sa.String(1000)),
 
         # Transport type
-        sa.Column('transport', sa.Enum(
+        sa.Column('transport', postgresql.ENUM(
             'stdio', 'sse', 'streamable_http',
             name='chat_mcp_transport', create_type=False
         ), nullable=False),
@@ -526,7 +527,7 @@ def upgrade() -> None:
         sa.Column('rate_limit', postgresql.JSONB, default=dict),
 
         # Server status
-        sa.Column('status', sa.Enum(
+        sa.Column('status', postgresql.ENUM(
             'active', 'inactive', 'error',
             name='chat_mcp_server_status', create_type=False
         ), default='inactive'),

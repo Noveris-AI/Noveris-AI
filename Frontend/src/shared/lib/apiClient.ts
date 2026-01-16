@@ -105,6 +105,25 @@ export class BaseApiClient {
   }
 
   /**
+   * Get authentication headers
+   * In development mode, uses mock token to bypass authentication
+   */
+  protected getAuthHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {}
+
+    // Check if we're in development mode and should use mock auth
+    const useMockAuth = import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_AUTH !== 'false'
+
+    if (useMockAuth) {
+      // Mock token for development - bypasses authentication
+      headers['Authorization'] = 'Bearer mock-dev-token-for-testing'
+      console.info('[Dev Mode] Using mock authentication token')
+    }
+
+    return headers
+  }
+
+  /**
    * Make HTTP request with retry logic and error handling
    */
   protected async request<T>(
@@ -125,6 +144,7 @@ export class BaseApiClient {
       ...fetchOptions,
       headers: {
         'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
         ...fetchOptions.headers,
       },
       credentials: 'include',

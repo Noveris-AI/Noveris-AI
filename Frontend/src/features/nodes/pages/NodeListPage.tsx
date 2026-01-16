@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { nodeManagementClient } from '../api/nodeManagementClient'
 import type {
-  Node,
+  Node as NodeType,
   NodeStatus,
   AcceleratorType,
   NodeGroup,
@@ -21,12 +21,14 @@ export function NodeListPage() {
   const navigate = useNavigate()
 
   // State
-  const [nodes, setNodes] = useState<Node[]>([])
+  const [nodes, setNodes] = useState<NodeType[]>([])
   const [groups, setGroups] = useState<NodeGroup[]>([])
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [total, setTotal] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [hasNext, setHasNext] = useState(false)
+  const [hasPrev, setHasPrev] = useState(false)
   const [loading, setLoading] = useState(true)
   const [initialLoading, setInitialLoading] = useState(true)
 
@@ -80,6 +82,8 @@ export function NodeListPage() {
       setTotal(response.pagination.total)
       setTotalPages(response.pagination.total_pages)
       setCurrentPage(response.pagination.page)
+      setHasNext(response.pagination.has_next)
+      setHasPrev(response.pagination.has_prev)
     } catch (error) {
       console.error('Failed to fetch nodes:', error)
     } finally {
@@ -140,8 +144,9 @@ export function NodeListPage() {
     { value: 'nvidia_gpu', label: 'NVIDIA GPU' },
     { value: 'amd_gpu', label: 'AMD GPU' },
     { value: 'intel_gpu', label: 'Intel GPU' },
-    { value: 'huawei_npu', label: 'Huawei NPU' },
-    { value: 'thead_npu', label: 'T-Head NPU' },
+    { value: 'ascend_npu', label: 'Ascend NPU' },
+    { value: 't_head_npu', label: 'T-Head NPU' },
+    { value: 'generic_accel', label: 'Generic Accelerator' },
   ]
 
   return (
@@ -382,14 +387,14 @@ export function NodeListPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage <= 1 || loading}
+                  disabled={!hasPrev || loading}
                   className="px-3 py-1.5 text-sm border border-stone-300 dark:border-stone-600 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   上一页
                 </button>
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage >= totalPages || loading}
+                  disabled={!hasNext || loading}
                   className="px-3 py-1.5 text-sm border border-stone-300 dark:border-stone-600 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   下一页

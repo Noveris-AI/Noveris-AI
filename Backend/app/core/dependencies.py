@@ -74,7 +74,24 @@ async def get_current_user_optional(
     Get current user from session cookie (optional).
 
     Returns None if not authenticated, doesn't raise exception.
+
+    In development mode, accepts mock bearer token for testing.
     """
+    # Check for mock auth token in development mode
+    if settings.app.app_debug:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer mock-dev-token-"):
+            # Create a mock session for development
+            from uuid import UUID
+            mock_session = SessionData(
+                user_id=UUID("00000000-0000-0000-0000-000000000001"),  # Mock user ID
+                tenant_id=UUID("00000000-0000-0000-0000-000000000001"),  # Mock tenant ID
+                email="dev@example.com",
+                is_superuser=True,
+                role="admin",
+            )
+            return mock_session
+
     session_id = request.cookies.get(settings.session.cookie_name)
 
     if not session_id:

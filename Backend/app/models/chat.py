@@ -250,7 +250,7 @@ class ChatMessage(Base):
     )
 
     # Role
-    role = Column(Enum(MessageRole), nullable=False)
+    role = Column(Enum(MessageRole, create_type=False), nullable=False)
 
     # Content (structured)
     content = Column(JSONB, nullable=False)
@@ -569,7 +569,7 @@ class ChatMCPServer(Base):
     description = Column(String(1000))
 
     # Transport
-    transport = Column(Enum(MCPTransport), nullable=False)
+    transport = Column(Enum(MCPTransport, create_type=False), nullable=False)
     connection_config = Column(JSONB, nullable=False)
     environment = Column(JSONB, default=dict)
 
@@ -583,7 +583,7 @@ class ChatMCPServer(Base):
     rate_limit = Column(JSONB, default=dict)
 
     # Status
-    status = Column(Enum(MCPServerStatus), default=MCPServerStatus.INACTIVE)
+    status = Column(Enum(MCPServerStatus, create_type=False), default=MCPServerStatus.INACTIVE)
     last_health_check = Column(DateTime(timezone=True))
     health_check_error = Column(Text)
 

@@ -329,8 +329,9 @@
       "nvidia_gpu": "NVIDIA GPU",
       "amd_gpu": "AMD GPU",
       "intel_gpu": "Intel GPU",
-      "huawei_npu": "Huawei NPU",
-      "thead_npu": "T-Head NPU",
+      "ascend_npu": "华为昇腾 NPU",
+      "t_head_npu": "平头哥 NPU",
+      "generic_accel": "通用加速器",
       "none": "无加速器"
     },
     "stats": {
@@ -384,6 +385,11 @@
         "displayName": "显示名称",
         "displayNamePlaceholder": "GPU 服务器 01",
         "connectionType": "连接方式",
+        "connectionTypes": {
+          "ssh": "SSH 连接",
+          "local": "本地连接",
+          "winrm": "WinRM 连接"
+        },
         "ssh": "SSH 远程连接",
         "local": "本地连接",
         "sshUser": "SSH 用户名"
@@ -432,7 +438,8 @@
       "RUNNING": "运行中",
       "SUCCEEDED": "成功",
       "FAILED": "失败",
-      "CANCELED": "已取消"
+      "CANCELED": "已取消",
+      "TIMEOUT": "超时"
     },
     "table": {
       "task": "任务",

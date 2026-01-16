@@ -102,7 +102,7 @@ def upgrade() -> None:
         sa.Column('description', sa.String(1000)),
 
         # Provider type
-        sa.Column('type', sa.Enum(
+        sa.Column('type', postgresql.ENUM(
             'openai', 'openai_compatible', 'anthropic', 'gemini',
             'cohere', 'stable_diffusion', 'custom_http',
             name='gateway_upstream_type', create_type=False
@@ -110,7 +110,7 @@ def upgrade() -> None:
 
         # Connection
         sa.Column('base_url', sa.String(2000), nullable=False),
-        sa.Column('auth_type', sa.Enum(
+        sa.Column('auth_type', postgresql.ENUM(
             'bearer', 'header', 'query', 'none',
             name='gateway_auth_type', create_type=False
         ), default='bearer'),
@@ -324,7 +324,7 @@ def upgrade() -> None:
         sa.Column('quota', postgresql.JSONB, default=dict),
 
         # Logging policy for this key
-        sa.Column('log_payload_mode', sa.Enum(
+        sa.Column('log_payload_mode', postgresql.ENUM(
             'none', 'metadata_only', 'sampled', 'full_with_redaction',
             name='gateway_log_payload_mode', create_type=False
         ), default='metadata_only'),

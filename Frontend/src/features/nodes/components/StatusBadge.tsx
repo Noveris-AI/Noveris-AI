@@ -63,6 +63,19 @@ const jobStatusConfig: Record<JobStatus, { label: string; color: string; dotColo
     color: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
     dotColor: 'bg-amber-500',
   },
+  TIMEOUT: {
+    label: '超时',
+    color: 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
+    dotColor: 'bg-yellow-500',
+  },
+}
+
+/**
+ * Helper function for exhaustiveness checking
+ * TypeScript will error if a new JobStatus is added but not handled
+ */
+function assertNever(value: never): never {
+  throw new Error(`Unhandled status value: ${value}`)
 }
 
 export function NodeStatusBadge({ status, size = 'md' }: StatusBadgeProps) {
@@ -83,7 +96,12 @@ export function NodeStatusBadge({ status, size = 'md' }: StatusBadgeProps) {
 
 export function JobStatusBadge({ status, size = 'md' }: StatusBadgeProps) {
   const config = jobStatusConfig[status as JobStatus]
-  if (!config) return null
+
+  // Exhaustiveness check: TypeScript will error if a case is missing
+  if (!config) {
+    assertNever(status as never)
+    return null
+  }
 
   const sizeClasses = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm'
 

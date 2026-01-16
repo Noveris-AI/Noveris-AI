@@ -1,7 +1,7 @@
 """Add monitoring tables
 
 Revision ID: 20260118_0001
-Revises: 20260117_0001
+Revises: 20260117_0001_settings
 Create Date: 2026-01-18 00:01:00.000000
 
 """
@@ -13,65 +13,97 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '20260118_0001'
-down_revision: Union[str, None] = '20260117_0001'
+down_revision: Union[str, None] = '20260117_0001_settings'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Create enum types
+    # Create enum types - using DO blocks to handle existing types
     op.execute("""
-        CREATE TYPE targettype AS ENUM (
-            'node', 'gateway', 'model', 'accelerator', 'blackbox', 'custom'
-        );
+        DO $$ BEGIN
+            CREATE TYPE targettype AS ENUM (
+                'node', 'gateway', 'model', 'accelerator', 'blackbox', 'custom'
+            );
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
     """)
 
     op.execute("""
-        CREATE TYPE adaptervendor AS ENUM (
-            'nvidia', 'huawei_ascend', 'aliyun_npu', 'amd', 'intel', 'custom'
-        );
+        DO $$ BEGIN
+            CREATE TYPE adaptervendor AS ENUM (
+                'nvidia', 'huawei_ascend', 'aliyun_npu', 'amd', 'intel', 'custom'
+            );
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
     """)
 
     op.execute("""
-        CREATE TYPE adaptermode AS ENUM (
-            'prometheus', 'cloud_api', 'exec'
-        );
+        DO $$ BEGIN
+            CREATE TYPE adaptermode AS ENUM (
+                'prometheus', 'cloud_api', 'exec'
+            );
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
     """)
 
     op.execute("""
-        CREATE TYPE alertseverity AS ENUM (
-            'info', 'warning', 'critical'
-        );
+        DO $$ BEGIN
+            CREATE TYPE alertseverity AS ENUM (
+                'info', 'warning', 'critical'
+            );
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
     """)
 
     op.execute("""
-        CREATE TYPE eventlevel AS ENUM (
-            'debug', 'info', 'warning', 'error', 'critical'
-        );
+        DO $$ BEGIN
+            CREATE TYPE eventlevel AS ENUM (
+                'debug', 'info', 'warning', 'error', 'critical'
+            );
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
     """)
 
     op.execute("""
-        CREATE TYPE eventtype AS ENUM (
-            'node_up', 'node_down', 'node_reboot',
-            'model_load', 'model_unload', 'model_error', 'model_cold_start',
-            'route_change', 'upstream_change', 'circuit_breaker',
-            'alert_firing', 'alert_resolved', 'alert_ack', 'alert_silence',
-            'ssh_login_failed', 'ssh_login_success', 'unauthorized_access', 'file_integrity_violation',
-            'config_change', 'budget_warning', 'budget_exceeded',
-            'adapter_error', 'scrape_failure'
-        );
+        DO $$ BEGIN
+            CREATE TYPE eventtype AS ENUM (
+                'node_up', 'node_down', 'node_reboot',
+                'model_load', 'model_unload', 'model_error', 'model_cold_start',
+                'route_change', 'upstream_change', 'circuit_breaker',
+                'alert_firing', 'alert_resolved', 'alert_ack', 'alert_silence',
+                'ssh_login_failed', 'ssh_login_success', 'unauthorized_access', 'file_integrity_violation',
+                'config_change', 'budget_warning', 'budget_exceeded',
+                'adapter_error', 'scrape_failure'
+            );
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
     """)
 
     op.execute("""
-        CREATE TYPE budgetscope AS ENUM (
-            'tenant', 'node', 'api_key', 'model'
-        );
+        DO $$ BEGIN
+            CREATE TYPE budgetscope AS ENUM (
+                'tenant', 'node', 'api_key', 'model'
+            );
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
     """)
 
     op.execute("""
-        CREATE TYPE budgetwindow AS ENUM (
-            'hourly', 'daily', 'weekly', 'monthly'
-        );
+        DO $$ BEGIN
+            CREATE TYPE budgetwindow AS ENUM (
+                'hourly', 'daily', 'weekly', 'monthly'
+            );
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
     """)
 
     # monitoring_settings table
@@ -112,7 +144,7 @@ def upgrade() -> None:
         sa.Column('tenant_id', postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column('name', sa.String(255), nullable=False),
         sa.Column('description', sa.String(1000)),
-        sa.Column('type', sa.Enum('node', 'gateway', 'model', 'accelerator', 'blackbox', 'custom', name='targettype'), nullable=False),
+        sa.Column('type', postgresql.ENUM('node', 'gateway', 'model', 'accelerator', 'blackbox', 'custom', name='targettype', create_type=False), nullable=False),
         sa.Column('scrape_url', sa.String(2000), nullable=False),
         sa.Column('scrape_interval', sa.String(20), server_default='30s'),
         sa.Column('scrape_timeout', sa.String(20), server_default='10s'),
@@ -146,8 +178,8 @@ def upgrade() -> None:
         sa.Column('tenant_id', postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column('name', sa.String(255), nullable=False),
         sa.Column('description', sa.String(1000)),
-        sa.Column('vendor', sa.Enum('nvidia', 'huawei_ascend', 'aliyun_npu', 'amd', 'intel', 'custom', name='adaptervendor'), nullable=False),
-        sa.Column('mode', sa.Enum('prometheus', 'cloud_api', 'exec', name='adaptermode'), nullable=False),
+        sa.Column('vendor', postgresql.ENUM('nvidia', 'huawei_ascend', 'aliyun_npu', 'amd', 'intel', 'custom', name='adaptervendor', create_type=False), nullable=False),
+        sa.Column('mode', postgresql.ENUM('prometheus', 'cloud_api', 'exec', name='adaptermode', create_type=False), nullable=False),
         sa.Column('config', postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default='{}'),
         sa.Column('mapping', postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default='{}'),
         sa.Column('label_mapping', postgresql.JSONB(astext_type=sa.Text()), server_default='{}'),
@@ -198,7 +230,7 @@ def upgrade() -> None:
         sa.Column('group', sa.String(100), server_default='default'),
         sa.Column('expr', sa.Text(), nullable=False),
         sa.Column('for_duration', sa.String(20), server_default='5m'),
-        sa.Column('severity', sa.Enum('info', 'warning', 'critical', name='alertseverity'), nullable=False, server_default='warning'),
+        sa.Column('severity', postgresql.ENUM('info', 'warning', 'critical', name='alertseverity', create_type=False), nullable=False, server_default='warning'),
         sa.Column('labels', postgresql.JSONB(astext_type=sa.Text()), server_default='{}'),
         sa.Column('annotations', postgresql.JSONB(astext_type=sa.Text()), server_default='{}'),
         sa.Column('routing', postgresql.JSONB(astext_type=sa.Text()), server_default='{}'),
@@ -220,7 +252,7 @@ def upgrade() -> None:
         'monitoring_events',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False, server_default=sa.text('gen_random_uuid()')),
         sa.Column('tenant_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('type', sa.Enum(
+        sa.Column('type', postgresql.ENUM(
             'node_up', 'node_down', 'node_reboot',
             'model_load', 'model_unload', 'model_error', 'model_cold_start',
             'route_change', 'upstream_change', 'circuit_breaker',
@@ -228,9 +260,9 @@ def upgrade() -> None:
             'ssh_login_failed', 'ssh_login_success', 'unauthorized_access', 'file_integrity_violation',
             'config_change', 'budget_warning', 'budget_exceeded',
             'adapter_error', 'scrape_failure',
-            name='eventtype'
+            name='eventtype', create_type=False
         ), nullable=False),
-        sa.Column('level', sa.Enum('debug', 'info', 'warning', 'error', 'critical', name='eventlevel'), nullable=False, server_default='info'),
+        sa.Column('level', postgresql.ENUM('debug', 'info', 'warning', 'error', 'critical', name='eventlevel', create_type=False), nullable=False, server_default='info'),
         sa.Column('node_id', postgresql.UUID(as_uuid=True)),
         sa.Column('model_id', postgresql.UUID(as_uuid=True)),
         sa.Column('deployment_id', postgresql.UUID(as_uuid=True)),
@@ -282,11 +314,11 @@ def upgrade() -> None:
         sa.Column('tenant_id', postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column('name', sa.String(255), nullable=False),
         sa.Column('description', sa.String(1000)),
-        sa.Column('scope', sa.Enum('tenant', 'node', 'api_key', 'model', name='budgetscope'), nullable=False),
+        sa.Column('scope', postgresql.ENUM('tenant', 'node', 'api_key', 'model', name='budgetscope', create_type=False), nullable=False),
         sa.Column('scope_target', sa.String(500)),
         sa.Column('limit_amount', sa.Numeric(precision=12, scale=2), nullable=False),
         sa.Column('limit_currency', sa.String(10), server_default='USD'),
-        sa.Column('window', sa.Enum('hourly', 'daily', 'weekly', 'monthly', name='budgetwindow'), nullable=False, server_default='monthly'),
+        sa.Column('window', postgresql.ENUM('hourly', 'daily', 'weekly', 'monthly', name='budgetwindow', create_type=False), nullable=False, server_default='monthly'),
         sa.Column('alert_thresholds', postgresql.JSONB(astext_type=sa.Text()), server_default='[50, 80, 100]'),
         sa.Column('notification_config', postgresql.JSONB(astext_type=sa.Text()), server_default='{}'),
         sa.Column('current_spending', sa.Numeric(precision=12, scale=2), server_default='0'),

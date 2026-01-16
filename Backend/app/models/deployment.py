@@ -102,14 +102,14 @@ class Deployment(Base):
     description = Column(Text)
 
     # Framework configuration
-    framework = Column(Enum(DeploymentFramework), nullable=False)
-    deployment_mode = Column(Enum(DeploymentMode), default=DeploymentMode.NATIVE)
+    framework = Column(Enum(DeploymentFramework, create_type=False), nullable=False)
+    deployment_mode = Column(Enum(DeploymentMode, create_type=False), default=DeploymentMode.NATIVE)
 
     # Node assignment
     node_id = Column(UUID(as_uuid=True), ForeignKey("nodes.id", ondelete="SET NULL"), nullable=True)
 
     # Model source configuration
-    model_source = Column(Enum(ModelSource), default=ModelSource.HUGGINGFACE)
+    model_source = Column(Enum(ModelSource, create_type=False), default=ModelSource.HUGGINGFACE)
     model_repo_id = Column(String(500), nullable=False)  # e.g., "meta-llama/Llama-2-7b-chat-hf"
     model_revision = Column(String(100))  # Git revision/tag
     model_local_path = Column(String(1000))  # Path on target node after download
@@ -137,7 +137,7 @@ class Deployment(Base):
     sensitive_env_refs = Column(JSONB, default=dict)
 
     # Status and health
-    status = Column(Enum(DeploymentStatus), default=DeploymentStatus.PENDING, nullable=False)
+    status = Column(Enum(DeploymentStatus, create_type=False), default=DeploymentStatus.PENDING, nullable=False)
     health_status = Column(String(50), default="unknown")  # healthy, unhealthy, unknown
     last_health_check_at = Column(DateTime(timezone=True))
     health_check_error = Column(Text)

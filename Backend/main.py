@@ -25,10 +25,10 @@ def main() -> None:
     """Run the FastAPI application."""
     uvicorn.run(
         "app.main:app",
-        host=settings.api_host,
-        port=settings.api_port,
+        host=settings.app.api_host,
+        port=settings.app.api_port,
         reload=settings.app.app_debug and settings.dev_auto_reload,
-        workers=1 if settings.app.app_debug else settings.api_workers,
+        workers=1 if settings.app.app_debug else settings.app.api_workers,
         log_level=settings.log.level.lower(),
         access_log=settings.log.requests,
     )

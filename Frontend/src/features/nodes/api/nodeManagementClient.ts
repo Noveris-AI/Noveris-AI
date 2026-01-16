@@ -27,11 +27,37 @@ import type {
   JobRunSearchParams,
   JobRunEvent,
   DashboardStats,
+  ConnectivityCheckResponse,
+  BulkConnectivityCheckResponse,
+  ConnectivityCheckRequest,
 } from './nodeManagementTypes'
 
 class NodeManagementClient extends BaseApiClient {
   constructor() {
     super('')  // Base path is /api/v1
+  }
+
+  /**
+   * Enrich pagination metadata with computed has_next and has_prev fields
+   * @private
+   */
+  private enrichPaginationMetadata(apiResponse: any): any {
+    if (!apiResponse.pagination) {
+      return apiResponse;
+    }
+
+    const { total, page, page_size, total_pages } = apiResponse.pagination;
+    return {
+      ...apiResponse,
+      pagination: {
+        total,
+        page,
+        page_size,
+        total_pages,
+        has_next: page < total_pages,
+        has_prev: page > 1
+      }
+    };
   }
 
   // ==========================================================================
@@ -50,7 +76,8 @@ class NodeManagementClient extends BaseApiClient {
     // Note: tags array handling - join as comma-separated
     if (params.tags?.length) queryParams.tags = params.tags.join(',')
 
-    return this.get<NodeListResponse>('/nodes', queryParams)
+    const response = await this.get<any>('/nodes', queryParams)
+    return this.enrichPaginationMetadata(response) as NodeListResponse
   }
 
   async getNode(nodeId: string): Promise<NodeDetail> {
@@ -69,8 +96,13 @@ class NodeManagementClient extends BaseApiClient {
     await this.delete<void>(`/nodes/${nodeId}`)
   }
 
-  async verifyConnectivity(nodeId: string): Promise<{ status: string; message: string }> {
-    return this.post<{ status: string; message: string }>(`/nodes/${nodeId}:verify`, {})
+  async verifyConnectivity(nodeId: string, updateStatus: boolean = true): Promise<ConnectivityCheckResponse> {
+    return this.post<ConnectivityCheckResponse>(`/nodes/${nodeId}:verify`, {}, { update_status: updateStatus })
+  }
+
+  async verifyConnectivityBulk(nodeIds: string[], updateStatus: boolean = true): Promise<BulkConnectivityCheckResponse> {
+    const data: ConnectivityCheckRequest = { node_ids: nodeIds }
+    return this.post<BulkConnectivityCheckResponse>('/nodes:verify_bulk', data, { update_status: updateStatus })
   }
 
   async collectNodeFacts(nodeId: string): Promise<JobRun> {
@@ -86,7 +118,8 @@ class NodeManagementClient extends BaseApiClient {
   // ==========================================================================
 
   async listNodeGroups(page: number = 1, pageSize: number = 20): Promise<NodeGroupListResponse> {
-    return this.get<NodeGroupListResponse>('/node-groups', { page, page_size: pageSize })
+    const response = await this.get<any>('/node-groups', { page, page_size: pageSize })
+    return this.enrichPaginationMetadata(response) as NodeGroupListResponse
   }
 
   async getNodeGroup(groupId: string): Promise<NodeGroup> {
@@ -138,7 +171,8 @@ class NodeManagementClient extends BaseApiClient {
     }
     if (category) params.category = category
 
-    return this.get<JobTemplateListResponse>('/job-templates', params)
+    const response = await this.get<any>('/job-templates', params)
+    return this.enrichPaginationMetadata(response) as JobTemplateListResponse
   }
 
   async getJobTemplate(templateId: string): Promise<JobTemplate> {
@@ -162,7 +196,8 @@ class NodeManagementClient extends BaseApiClient {
     if (params.template_id) queryParams.template_id = params.template_id
     if (params.node_id) queryParams.node_id = params.node_id
 
-    return this.get<JobRunListResponse>('/job-runs', queryParams)
+    const response = await this.get<any>('/job-runs', queryParams)
+    return this.enrichPaginationMetadata(response) as JobRunListResponse
   }
 
   async getJobRun(jobRunId: string): Promise<JobRunDetail> {

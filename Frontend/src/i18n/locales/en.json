@@ -329,8 +329,9 @@
       "nvidia_gpu": "NVIDIA GPU",
       "amd_gpu": "AMD GPU",
       "intel_gpu": "Intel GPU",
-      "huawei_npu": "Huawei NPU",
-      "thead_npu": "T-Head NPU",
+      "ascend_npu": "Ascend NPU",
+      "t_head_npu": "T-Head NPU",
+      "generic_accel": "Generic Accelerator",
       "none": "No Accelerator"
     },
     "stats": {
@@ -384,6 +385,11 @@
         "displayName": "Display Name",
         "displayNamePlaceholder": "GPU Server 01",
         "connectionType": "Connection Type",
+        "connectionTypes": {
+          "ssh": "SSH Connection",
+          "local": "Local Connection",
+          "winrm": "WinRM Connection"
+        },
         "ssh": "SSH Remote",
         "local": "Local",
         "sshUser": "SSH Username"
@@ -432,7 +438,8 @@
       "RUNNING": "Running",
       "SUCCEEDED": "Succeeded",
       "FAILED": "Failed",
-      "CANCELED": "Canceled"
+      "CANCELED": "Canceled",
+      "TIMEOUT": "Timeout"
     },
     "table": {
       "task": "Task",

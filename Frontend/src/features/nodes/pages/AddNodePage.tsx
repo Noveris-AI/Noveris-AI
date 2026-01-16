@@ -330,6 +330,19 @@ export function AddNodePage() {
                   />
                   <span className="text-stone-700 dark:text-stone-300">本地连接</span>
                 </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="connectionType"
+                    checked={connectionType === 'winrm'}
+                    onChange={() => setConnectionType('winrm')}
+                    className="w-4 h-4 text-teal-600 focus:ring-teal-500"
+                  />
+                  <span className="text-stone-700 dark:text-stone-300">
+                    WinRM 连接
+                    <span className="ml-1 text-xs text-amber-600 dark:text-amber-400">(实验性)</span>
+                  </span>
+                </label>
               </div>
             </div>
 

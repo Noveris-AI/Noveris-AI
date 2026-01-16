@@ -160,11 +160,11 @@ class GatewayUpstream(Base):
     description = Column(String(1000))
 
     # Provider type determines which adapter to use
-    type = Column(Enum(UpstreamType), nullable=False)
+    type = Column(Enum(UpstreamType, create_type=False), nullable=False)
 
     # Connection configuration
     base_url = Column(String(2000), nullable=False)
-    auth_type = Column(Enum(AuthType), default=AuthType.BEARER)
+    auth_type = Column(Enum(AuthType, create_type=False), default=AuthType.BEARER)
 
     # Reference to encrypted credential
     credentials_secret_id = Column(
@@ -398,7 +398,7 @@ class GatewayAPIKey(Base):
     quota = Column(JSONB, default=dict)
 
     # Logging policy
-    log_payload_mode = Column(Enum(LogPayloadMode), default=LogPayloadMode.METADATA_ONLY)
+    log_payload_mode = Column(Enum(LogPayloadMode, create_type=False), default=LogPayloadMode.METADATA_ONLY)
 
     # Optional: link to a user for audit
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))

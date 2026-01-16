@@ -4,9 +4,9 @@
 
 // Enums
 export type NodeStatus = 'NEW' | 'READY' | 'UNREACHABLE' | 'MAINTENANCE' | 'DECOMMISSIONED'
-export type JobStatus = 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED'
-export type ConnectionType = 'ssh' | 'local'
-export type AcceleratorType = 'nvidia_gpu' | 'amd_gpu' | 'intel_gpu' | 'huawei_npu' | 'thead_npu' | 'other'
+export type JobStatus = 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED' | 'TIMEOUT'
+export type ConnectionType = 'ssh' | 'local' | 'winrm'
+export type AcceleratorType = 'nvidia_gpu' | 'amd_gpu' | 'intel_gpu' | 'ascend_npu' | 't_head_npu' | 'generic_accel'
 
 // Node types
 export interface Node {
@@ -283,6 +283,32 @@ export interface JobTemplateListResponse extends PaginatedResponse<JobTemplate> 
 
 export interface JobRunListResponse extends PaginatedResponse<JobRun> {
   runs: JobRun[]
+}
+
+// Connectivity Check types
+export interface ConnectivityCheckResponse {
+  node_id: string
+  node_name: string
+  host: string
+  port: number
+  connection_type: ConnectionType
+  is_reachable: boolean
+  ssh_reachable: boolean
+  response_time_ms?: number
+  error_message?: string
+  checked_at: string
+}
+
+export interface BulkConnectivityCheckResponse {
+  checked_count: number
+  reachable_count: number
+  unreachable_count: number
+  results: ConnectivityCheckResponse[]
+  checked_at: string
+}
+
+export interface ConnectivityCheckRequest {
+  node_ids: string[]
 }
 
 // Search params
