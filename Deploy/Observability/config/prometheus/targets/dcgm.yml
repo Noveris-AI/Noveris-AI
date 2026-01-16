@@ -1,0 +1,10 @@
+# Example targets file for DCGM Exporter (NVIDIA GPUs)
+# Replace with actual GPU node IPs/hostnames
+# DCGM exporter default port: 9400
+
+- targets:
+    - "gpu-node-01:9400"
+    - "gpu-node-02:9400"
+  labels:
+    vendor: "nvidia"
+    env: "production"

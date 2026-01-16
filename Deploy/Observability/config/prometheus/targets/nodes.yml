@@ -1,0 +1,11 @@
+# Example targets file for Node Exporter
+# Replace with actual node IPs/hostnames
+# File is auto-reloaded by Prometheus every 30s
+
+- targets:
+    - "node-01:9100"
+    - "node-02:9100"
+    # - "node-03:9100"
+  labels:
+    env: "production"
+    datacenter: "dc1"

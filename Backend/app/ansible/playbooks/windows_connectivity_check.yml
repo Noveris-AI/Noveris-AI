@@ -1,0 +1,50 @@
+---
+# Windows Connectivity Check Playbook - Quick WinRM Verification
+# This is a lightweight playbook to verify WinRM connectivity to Windows nodes
+# Used by the node verification API endpoint
+
+- name: Windows Connectivity Check
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: Verify WinRM connectivity with win_ping
+      ansible.windows.win_ping:
+      register: ping_result
+
+    - name: Get Windows hostname
+      ansible.windows.win_shell: hostname
+      register: hostname_result
+      changed_when: false
+
+    - name: Get system uptime
+      ansible.windows.win_shell: |
+        $os = Get-WmiObject Win32_OperatingSystem
+        $uptime = (Get-Date) - $os.ConvertToDateTime($os.LastBootUpTime)
+        "Up $($uptime.Days) days, $($uptime.Hours) hours, $($uptime.Minutes) minutes"
+      register: uptime_result
+      changed_when: false
+      failed_when: false
+
+    - name: Get Windows version
+      ansible.windows.win_shell: |
+        (Get-WmiObject Win32_OperatingSystem).Caption
+      register: os_version_result
+      changed_when: false
+      failed_when: false
+
+    - name: Report connectivity status
+      ansible.builtin.set_fact:
+        noveris_connectivity:
+          reachable: true
+          hostname: "{{ hostname_result.stdout | trim }}"
+          uptime: "{{ uptime_result.stdout | default('unknown') | trim }}"
+          os_version: "{{ os_version_result.stdout | default('unknown') | trim }}"
+          checked_at: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Display result
+      ansible.builtin.debug:
+        msg: >-
+          Windows node {{ hostname_result.stdout | trim }} is reachable.
+          OS: {{ os_version_result.stdout | default('unknown') | trim }}.
+          Uptime: {{ uptime_result.stdout | default('unknown') | trim }}

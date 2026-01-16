@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: novaris-elasticsearch
+    restart: unless-stopped
+
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms${ES_HEAP_SIZE:-512m} -Xmx${ES_HEAP_SIZE:-512m}"
+      - ELASTIC_PASSWORD=${ES_PASSWORD}
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+      - xpack.license.self_generated.type=trial
+
+    ports:
+      - "${ES_PORT:-9200}:9200"
+      - "${ES_TCP_PORT:-9300}:9300"
+
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+      - ./conf/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+
+    networks:
+      - novaris-network
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: ${ES_MEMORY_LIMIT:-1G}
+          cpus: '${ES_CPU_LIMIT:-1.0}'
+        reservations:
+          memory: ${ES_MEMORY_RESERVATION:-512M}
+          cpus: '${ES_CPU_RESERVATION:-0.5}'
+
+    # 用户和权限
+    user: "1000:1000"
+
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  es_data:
+    driver: local
+
+networks:
+  novaris-network:
+    external: true
+    name: novaris-network

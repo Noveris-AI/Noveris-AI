@@ -1,0 +1,8 @@
+# Example targets file for NGINX exporter
+# Replace with actual NGINX exporter IPs/hostnames
+
+- targets:
+    # - "nginx-01:9113"
+  labels:
+    service: "gateway"
+    env: "production"

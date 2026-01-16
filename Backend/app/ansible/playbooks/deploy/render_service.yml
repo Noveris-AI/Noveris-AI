@@ -1,0 +1,66 @@
+---
+# render_service.yml
+#
+# Generate wrapper script and systemd unit for the deployment.
+
+- name: Render deployment service files
+  hosts: all
+  become: true
+  gather_facts: false
+
+  vars:
+    work_dir: "{{ work_dir | default('/var/lib/model-deployments') }}"
+    log_root: "{{ log_root | default('/data/logs/models') }}"
+    systemd_service_dir: "{{ systemd_service_dir | default('/etc/systemd/system') }}"
+    deploy_user: "{{ deploy_user | default('modelserve') }}"
+    deploy_group: "{{ deploy_group | default('modelserve') }}"
+
+  tasks:
+    - name: Ensure deployment work directory exists
+      ansible.builtin.file:
+        path: "{{ work_dir }}/{{ deployment_id }}"
+        state: directory
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: "0755"
+
+    - name: Ensure deployment log directory exists
+      ansible.builtin.file:
+        path: "{{ log_root }}/{{ deployment_id }}"
+        state: directory
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: "0755"
+
+    - name: Generate deployment configuration JSON
+      ansible.builtin.template:
+        src: config.json.j2
+        dest: "{{ work_dir }}/{{ deployment_id }}/config.json"
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: "0600"  # Contains potentially sensitive data
+
+    - name: Generate wrapper script
+      ansible.builtin.template:
+        src: run_wrapper.py.j2
+        dest: "{{ work_dir }}/{{ deployment_id }}/run.py"
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: "0755"
+
+    - name: Generate systemd unit file
+      ansible.builtin.template:
+        src: systemd.service.j2
+        dest: "{{ systemd_service_dir }}/noveris-model-{{ deployment_id[:12] }}.service"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Enable the service
+      ansible.builtin.systemd:
+        name: "noveris-model-{{ deployment_id[:12] }}"
+        enabled: true

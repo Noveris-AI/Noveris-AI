@@ -1,0 +1,175 @@
+---
+# AMD GPU Driver Installation Playbook
+# Installs AMD ROCm stack and amd-smi tools
+#
+# Variables:
+#   rocm_version: ROCm version (e.g., "6.0")
+#   install_hip: Install HIP runtime
+#   install_rocblas: Install rocBLAS
+#   reboot_if_required: Allow reboot after installation
+
+- name: Install AMD GPU Stack (ROCm)
+  hosts: all
+  gather_facts: true
+  become: true
+  serial: "{{ serial | default(omit) }}"
+  vars:
+    rocm_version: "6.0"
+    install_hip: true
+    install_rocblas: true
+    reboot_if_required: false
+
+  tasks:
+    # ==========================================================================
+    # Pre-flight Checks
+    # ==========================================================================
+    - name: Check for AMD GPU
+      ansible.builtin.command: lspci -nn | grep -i "AMD.*VGA\|AMD.*Display\|AMD.*3D"
+      register: amd_pci_check
+      failed_when: false
+      changed_when: false
+
+    - name: Fail if no AMD GPU found
+      ansible.builtin.fail:
+        msg: "No AMD GPU detected on this node"
+      when: amd_pci_check.rc != 0 and amd_pci_check.stdout == ""
+
+    - name: Check if ROCm already installed
+      ansible.builtin.command: rocm-smi --showid
+      register: rocm_check
+      failed_when: false
+      changed_when: false
+
+    # ==========================================================================
+    # Repository Setup (Ubuntu)
+    # ==========================================================================
+    - name: Install prerequisites (Ubuntu)
+      ansible.builtin.apt:
+        name:
+          - wget
+          - gnupg2
+          - libnuma-dev
+        state: present
+        update_cache: true
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Add ROCm GPG key (Ubuntu)
+      ansible.builtin.apt_key:
+        url: https://repo.radeon.com/rocm/rocm.gpg.key
+        state: present
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Add ROCm repository (Ubuntu)
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64] https://repo.radeon.com/rocm/apt/{{ rocm_version }} {{ ansible_distribution_release }} main"
+        state: present
+        filename: rocm
+      when: ansible_distribution == "Ubuntu"
+
+    # ==========================================================================
+    # Repository Setup (RHEL/CentOS)
+    # ==========================================================================
+    - name: Add ROCm repository (RHEL)
+      ansible.builtin.yum_repository:
+        name: rocm
+        description: ROCm Repository
+        baseurl: "https://repo.radeon.com/rocm/rhel{{ ansible_distribution_major_version }}/{{ rocm_version }}/main"
+        gpgkey: https://repo.radeon.com/rocm/rocm.gpg.key
+        gpgcheck: true
+        enabled: true
+      when: ansible_os_family == "RedHat"
+
+    # ==========================================================================
+    # Installation
+    # ==========================================================================
+    - name: Install ROCm meta-package (Ubuntu)
+      ansible.builtin.apt:
+        name:
+          - rocm-dkms
+          - rocm-dev
+          - amd-smi-lib
+        state: present
+        update_cache: true
+      when: ansible_distribution == "Ubuntu"
+      register: rocm_install_ubuntu
+
+    - name: Install ROCm (RHEL)
+      ansible.builtin.yum:
+        name:
+          - rocm-dkms
+          - rocm-dev
+          - amd-smi
+        state: present
+      when: ansible_os_family == "RedHat"
+      register: rocm_install_rhel
+
+    - name: Install HIP runtime
+      ansible.builtin.package:
+        name:
+          - hip-runtime-amd
+        state: present
+      when: install_hip
+
+    - name: Install rocBLAS
+      ansible.builtin.package:
+        name:
+          - rocblas
+        state: present
+      when: install_rocblas
+
+    # ==========================================================================
+    # User Configuration
+    # ==========================================================================
+    - name: Add users to render and video groups
+      ansible.builtin.user:
+        name: "{{ item }}"
+        groups: render,video
+        append: true
+      loop:
+        - root
+      failed_when: false
+
+    # ==========================================================================
+    # Environment Setup
+    # ==========================================================================
+    - name: Configure ROCm environment
+      ansible.builtin.copy:
+        dest: /etc/profile.d/rocm.sh
+        content: |
+          export PATH=$PATH:/opt/rocm/bin
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/rocm/lib
+        mode: '0644'
+
+    # ==========================================================================
+    # Reboot Handling
+    # ==========================================================================
+    - name: Set installation result
+      ansible.builtin.set_fact:
+        rocm_installed: "{{ rocm_install_ubuntu.changed | default(false) or rocm_install_rhel.changed | default(false) }}"
+
+    - name: Reboot if required
+      ansible.builtin.reboot:
+        msg: "Rebooting for AMD ROCm driver installation"
+        reboot_timeout: 600
+      when:
+        - reboot_if_required
+        - rocm_installed
+
+    # ==========================================================================
+    # Verification
+    # ==========================================================================
+    - name: Verify ROCm installation
+      ansible.builtin.command: rocm-smi --showid
+      register: rocm_verify
+      failed_when: false
+      changed_when: false
+      when: not rocm_installed or not reboot_if_required
+
+    - name: Display installation summary
+      ansible.builtin.debug:
+        msg:
+          - "AMD ROCm Installation Complete"
+          - "ROCm version: {{ rocm_version }}"
+          - "HIP installed: {{ install_hip }}"
+          - "rocBLAS installed: {{ install_rocblas }}"
+          - "Status: {{ 'Verified' if rocm_verify.rc | default(1) == 0 else 'Pending reboot' }}"

@@ -1,0 +1,185 @@
+---
+# Monitoring Agent Deployment Playbook
+# Deploys Prometheus exporters and optional monitoring agents
+
+- name: Deploy Monitoring Agents
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    node_exporter_version: "{{ node_exporter_ver | default('1.7.0') }}"
+    deploy_node_exporter: "{{ enable_node_exporter | default(true) }}"
+    deploy_nvidia_exporter: "{{ enable_nvidia_exporter | default(false) }}"
+    prometheus_server: "{{ prometheus_url | default('') }}"
+    node_exporter_port: 9100
+    nvidia_exporter_port: 9400
+
+  tasks:
+    # Node Exporter Installation
+    - name: Create prometheus user
+      ansible.builtin.user:
+        name: prometheus
+        system: yes
+        shell: /sbin/nologin
+        create_home: no
+      when: deploy_node_exporter | bool
+
+    - name: Check if node_exporter is already installed
+      ansible.builtin.stat:
+        path: /usr/local/bin/node_exporter
+      register: node_exporter_binary
+
+    - name: Download node_exporter
+      ansible.builtin.get_url:
+        url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+        dest: /tmp/node_exporter.tar.gz
+      when:
+        - deploy_node_exporter | bool
+        - not node_exporter_binary.stat.exists
+
+    - name: Extract node_exporter
+      ansible.builtin.unarchive:
+        src: /tmp/node_exporter.tar.gz
+        dest: /tmp
+        remote_src: yes
+      when:
+        - deploy_node_exporter | bool
+        - not node_exporter_binary.stat.exists
+
+    - name: Install node_exporter binary
+      ansible.builtin.copy:
+        src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+        dest: /usr/local/bin/node_exporter
+        mode: '0755'
+        remote_src: yes
+      when:
+        - deploy_node_exporter | bool
+        - not node_exporter_binary.stat.exists
+
+    - name: Create node_exporter systemd service
+      ansible.builtin.template:
+        src: node_exporter.service.j2
+        dest: /etc/systemd/system/node_exporter.service
+      notify: restart node_exporter
+      when: deploy_node_exporter | bool
+
+    - name: Create node_exporter service file (inline)
+      ansible.builtin.copy:
+        content: |
+          [Unit]
+          Description=Prometheus Node Exporter
+          After=network.target
+
+          [Service]
+          User=prometheus
+          Group=prometheus
+          Type=simple
+          ExecStart=/usr/local/bin/node_exporter --web.listen-address=:{{ node_exporter_port }}
+          Restart=always
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/node_exporter.service
+        mode: '0644'
+      notify: restart node_exporter
+      when: deploy_node_exporter | bool
+
+    - name: Enable and start node_exporter
+      ansible.builtin.systemd:
+        name: node_exporter
+        enabled: yes
+        state: started
+        daemon_reload: yes
+      when: deploy_node_exporter | bool
+
+    # NVIDIA GPU Exporter (if GPU present)
+    - name: Check for NVIDIA GPU
+      ansible.builtin.command: nvidia-smi
+      register: nvidia_check
+      changed_when: false
+      failed_when: false
+      when: deploy_nvidia_exporter | bool
+
+    - name: Download NVIDIA DCGM exporter
+      ansible.builtin.get_url:
+        url: "https://github.com/NVIDIA/dcgm-exporter/releases/latest/download/dcgm-exporter"
+        dest: /usr/local/bin/dcgm-exporter
+        mode: '0755'
+      when:
+        - deploy_nvidia_exporter | bool
+        - nvidia_check.rc == 0
+
+    - name: Create NVIDIA exporter systemd service
+      ansible.builtin.copy:
+        content: |
+          [Unit]
+          Description=NVIDIA DCGM Exporter
+          After=network.target
+
+          [Service]
+          Type=simple
+          ExecStart=/usr/local/bin/dcgm-exporter --address=:{{ nvidia_exporter_port }}
+          Restart=always
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/dcgm-exporter.service
+        mode: '0644'
+      notify: restart dcgm-exporter
+      when:
+        - deploy_nvidia_exporter | bool
+        - nvidia_check.rc == 0
+
+    - name: Enable and start NVIDIA exporter
+      ansible.builtin.systemd:
+        name: dcgm-exporter
+        enabled: yes
+        state: started
+        daemon_reload: yes
+      when:
+        - deploy_nvidia_exporter | bool
+        - nvidia_check.rc == 0
+
+    # Firewall configuration
+    - name: Open node_exporter port (firewalld)
+      ansible.posix.firewalld:
+        port: "{{ node_exporter_port }}/tcp"
+        permanent: yes
+        state: enabled
+        immediate: yes
+      when:
+        - deploy_node_exporter | bool
+        - ansible_os_family == "RedHat"
+      ignore_errors: yes
+
+    - name: Open node_exporter port (ufw)
+      community.general.ufw:
+        rule: allow
+        port: "{{ node_exporter_port }}"
+        proto: tcp
+      when:
+        - deploy_node_exporter | bool
+        - ansible_os_family == "Debian"
+      ignore_errors: yes
+
+    - name: Report monitoring status
+      ansible.builtin.set_fact:
+        noveris_monitoring:
+          node_exporter_installed: "{{ deploy_node_exporter | bool }}"
+          node_exporter_port: "{{ node_exporter_port }}"
+          nvidia_exporter_installed: "{{ deploy_nvidia_exporter | bool and nvidia_check.rc | default(1) == 0 }}"
+          nvidia_exporter_port: "{{ nvidia_exporter_port if (deploy_nvidia_exporter | bool and nvidia_check.rc | default(1) == 0) else null }}"
+
+  handlers:
+    - name: restart node_exporter
+      ansible.builtin.systemd:
+        name: node_exporter
+        state: restarted
+
+    - name: restart dcgm-exporter
+      ansible.builtin.systemd:
+        name: dcgm-exporter
+        state: restarted

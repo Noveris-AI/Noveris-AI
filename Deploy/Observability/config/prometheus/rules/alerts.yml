@@ -1,0 +1,178 @@
+# GPU/NPU Alert Rules
+groups:
+  - name: gpu_alerts
+    interval: 30s
+    rules:
+      # GPU Temperature Critical
+      - alert: GPUTemperatureCritical
+        expr: DCGM_FI_DEV_GPU_TEMP > 85
+        for: 2m
+        labels:
+          severity: critical
+          category: hardware
+        annotations:
+          summary: "GPU temperature critical on {{ $labels.Hostname }}"
+          description: "GPU {{ $labels.gpu }} on {{ $labels.Hostname }} is at {{ $value }}°C (threshold: 85°C)"
+
+      # GPU Temperature Warning
+      - alert: GPUTemperatureWarning
+        expr: DCGM_FI_DEV_GPU_TEMP > 75 and DCGM_FI_DEV_GPU_TEMP <= 85
+        for: 5m
+        labels:
+          severity: warning
+          category: hardware
+        annotations:
+          summary: "GPU temperature warning on {{ $labels.Hostname }}"
+          description: "GPU {{ $labels.gpu }} on {{ $labels.Hostname }} is at {{ $value }}°C"
+
+      # GPU Memory Critical
+      - alert: GPUMemoryCritical
+        expr: (DCGM_FI_DEV_FB_USED / DCGM_FI_DEV_FB_FREE) * 100 > 95
+        for: 5m
+        labels:
+          severity: critical
+          category: resource
+        annotations:
+          summary: "GPU memory critical on {{ $labels.Hostname }}"
+          description: "GPU {{ $labels.gpu }} memory usage is above 95%"
+
+      # GPU Down
+      - alert: GPUDown
+        expr: up{job="dcgm"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "DCGM exporter down on {{ $labels.instance }}"
+          description: "Cannot collect GPU metrics from {{ $labels.instance }}"
+
+      # GPU Power Consumption High
+      - alert: GPUPowerHigh
+        expr: DCGM_FI_DEV_POWER_USAGE > 350
+        for: 10m
+        labels:
+          severity: warning
+          category: power
+        annotations:
+          summary: "High GPU power consumption on {{ $labels.Hostname }}"
+          description: "GPU {{ $labels.gpu }} power usage is {{ $value }}W"
+
+  - name: npu_alerts
+    interval: 30s
+    rules:
+      # Ascend NPU Temperature Critical
+      - alert: NPUTemperatureCritical
+        expr: npu_chip_info_temperature > 85
+        for: 2m
+        labels:
+          severity: critical
+          category: hardware
+        annotations:
+          summary: "NPU temperature critical on {{ $labels.instance }}"
+          description: "NPU {{ $labels.npu_id }} temperature is {{ $value }}°C"
+
+      # Ascend NPU Health Error
+      - alert: NPUHealthError
+        expr: npu_chip_info_health_status != 0
+        for: 1m
+        labels:
+          severity: critical
+          category: hardware
+        annotations:
+          summary: "NPU health error on {{ $labels.instance }}"
+          description: "NPU {{ $labels.npu_id }} health status is abnormal"
+
+  - name: node_alerts
+    interval: 30s
+    rules:
+      # Node Down
+      - alert: NodeDown
+        expr: up{job="node"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "Node {{ $labels.instance }} is down"
+          description: "Node exporter on {{ $labels.instance }} is unreachable"
+
+      # High CPU Usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90
+        for: 10m
+        labels:
+          severity: warning
+          category: resource
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value | printf \"%.1f\" }}%"
+
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          category: resource
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value | printf \"%.1f\" }}%"
+
+      # Disk Space Critical
+      - alert: DiskSpaceCritical
+        expr: (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          category: resource
+        annotations:
+          summary: "Disk space critical on {{ $labels.instance }}"
+          description: "Disk {{ $labels.mountpoint }} is {{ $value | printf \"%.1f\" }}% full"
+
+  - name: model_service_alerts
+    interval: 30s
+    rules:
+      # vLLM High Latency
+      - alert: VLLMHighLatency
+        expr: histogram_quantile(0.99, sum(rate(vllm:e2e_request_latency_seconds_bucket[5m])) by (le)) > 10
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "High vLLM latency"
+          description: "vLLM P99 latency is {{ $value | printf \"%.2f\" }}s"
+
+      # vLLM Error Rate
+      - alert: VLLMHighErrorRate
+        expr: sum(rate(vllm:request_success_total{success="false"}[5m])) / sum(rate(vllm:request_success_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          category: reliability
+        annotations:
+          summary: "High vLLM error rate"
+          description: "vLLM error rate is {{ $value | printf \"%.2f\" }}%"
+
+      # vLLM Queue Depth High
+      - alert: VLLMQueueDepthHigh
+        expr: vllm:num_requests_waiting > 100
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "High vLLM queue depth"
+          description: "{{ $value }} requests waiting in queue"
+
+      # Model Service Down
+      - alert: ModelServiceDown
+        expr: up{job=~"vllm|sglang"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "Model service {{ $labels.job }} down on {{ $labels.instance }}"
+          description: "Model service is unreachable"

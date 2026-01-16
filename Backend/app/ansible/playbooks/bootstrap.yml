@@ -1,0 +1,148 @@
+---
+# Bootstrap Playbook - Basic Node Initialization
+# This playbook performs basic initialization of managed nodes:
+# - Verify connectivity
+# - Check Python availability
+# - Create management user (optional)
+# - Configure SSH keys (optional)
+# - Set up sudo access
+# - Configure basic system parameters
+
+- name: Bootstrap Node
+  hosts: all
+  gather_facts: true
+  become: true
+  vars:
+    # Set to true to create a dedicated management user
+    create_management_user: false
+    management_user: "noveris"
+    management_user_ssh_key: ""
+
+  tasks:
+    - name: Check Python3 availability
+      ansible.builtin.command: python3 --version
+      register: python_check
+      failed_when: false
+      changed_when: false
+
+    - name: Set Python fact
+      ansible.builtin.set_fact:
+        python_available: "{{ python_check.rc == 0 }}"
+        python_path: "{{ python_check.stdout | regex_search('/.*') }}"
+
+    - name: Display Python status
+      ansible.builtin.debug:
+        msg: "Python3 {{ 'found' if python_available else 'NOT FOUND' }}"
+
+    - name: Check if node is reachable
+      ansible.builtin.ping:
+      register: ping_result
+
+    - name: Gather minimum facts
+      ansible.builtin.setup:
+        gather_subset:
+          - "!all"
+          - "!min"
+          - "distribution"
+          - "os_family"
+          - "system"
+
+    - name: Ensure sudo is installed
+      ansible.builtin.package:
+        name: sudo
+        state: present
+      when: ansible_os_family != "Windows"
+
+    - name: Create management user (if requested)
+      ansible.builtin.user:
+        name: "{{ management_user }}"
+        shell: /bin/bash
+        create_home: true
+        state: present
+      when: create_management_user
+
+    - name: Configure sudo for management user
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers.d/{{ management_user }}
+        line: "{{ management_user }} ALL=(ALL) NOPASSWD:ALL"
+        create: true
+        mode: '0440'
+        validate: 'visudo -cf %s'
+      when: create_management_user
+
+    - name: Ensure .ssh directory exists for management user
+      ansible.builtin.file:
+        path: "/home/{{ management_user }}/.ssh"
+        state: directory
+        owner: "{{ management_user }}"
+        group: "{{ management_user }}"
+        mode: '0700'
+      when: create_management_user and management_user_ssh_key != ""
+
+    - name: Add SSH key to management user
+      ansible.builtin.copy:
+        content: "{{ management_user_ssh_key }}"
+        dest: "/home/{{ management_user }}/.ssh/authorized_keys"
+        owner: "{{ management_user }}"
+        group: "{{ management_user }}"
+        mode: '0600'
+      when: create_management_user and management_user_ssh_key != ""
+
+    - name: Configure system time synchronization (chrony)
+      ansible.builtin.package:
+        name: chrony
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Configure system time synchronization (ntp)
+      ansible.builtin.package:
+        name: ntp
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Enable and start time sync service
+      ansible.builtin.service:
+        name: "{{ 'chronyd' if ansible_os_family == 'RedHat' else 'ntp' }}"
+        state: started
+        enabled: true
+
+    - name: Disable SELinux (if enabled)
+      ansible.builtin.selinux:
+        state: disabled
+      when: ansible_selinux.status is defined and ansible_selinux.status != "disabled"
+      failed_when: false
+
+    - name: Set kernel parameters for container workloads
+      ansible.builtin.sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: true
+      loop:
+        - { key: "net.ipv4.ip_forward", value: "1" }
+        - { key: "net.bridge.bridge-nf-call-iptables", value: "1" }
+        - { key: "net.bridge.bridge-nf-call-ip6tables", value: "1" }
+
+    - name: Create facts output directory
+      ansible.builtin.file:
+        path: /tmp/noveris_facts
+        state: directory
+        mode: '0755'
+
+    - name: Write bootstrap completion status
+      ansible.builtin.copy:
+        content: |
+          bootstrap_completed: true
+          bootstrap_time: "{{ ansible_date_time.iso8601 }}"
+          python_available: "{{ python_available }}"
+          management_user_created: "{{ create_management_user }}"
+        dest: /tmp/noveris_facts/bootstrap_status.yml
+        mode: '0644'
+
+    - name: Display bootstrap summary
+      ansible.builtin.debug:
+        msg:
+          - "Bootstrap completed successfully"
+          - "Node: {{ inventory_hostname }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Python available: {{ python_available }}"

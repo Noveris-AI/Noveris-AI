@@ -1,0 +1,142 @@
+---
+# User Management Playbook
+# Create, modify, or remove system users with SSH keys
+
+- name: Manage System Users
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    users_to_create: "{{ create_users | default([]) }}"
+    users_to_remove: "{{ remove_users | default([]) }}"
+    default_shell: "{{ user_shell | default('/bin/bash') }}"
+    create_home: "{{ user_create_home | default(true) }}"
+    password_max_age: "{{ user_password_max_age | default(90) }}"
+
+  tasks:
+    # Create users
+    - name: Create user accounts
+      ansible.builtin.user:
+        name: "{{ item.username }}"
+        comment: "{{ item.comment | default('') }}"
+        uid: "{{ item.uid | default(omit) }}"
+        group: "{{ item.primary_group | default(omit) }}"
+        groups: "{{ item.groups | default([]) | join(',') }}"
+        shell: "{{ item.shell | default(default_shell) }}"
+        create_home: "{{ item.create_home | default(create_home) }}"
+        home: "{{ item.home | default(omit) }}"
+        password: "{{ item.password_hash | default('!') }}"
+        state: present
+      loop: "{{ users_to_create }}"
+      when: users_to_create | length > 0
+
+    # Set up SSH authorized keys
+    - name: Create .ssh directory
+      ansible.builtin.file:
+        path: "/home/{{ item.username }}/.ssh"
+        state: directory
+        owner: "{{ item.username }}"
+        group: "{{ item.primary_group | default(item.username) }}"
+        mode: '0700'
+      loop: "{{ users_to_create }}"
+      when:
+        - users_to_create | length > 0
+        - item.ssh_keys is defined
+        - item.ssh_keys | length > 0
+
+    - name: Add SSH authorized keys
+      ansible.posix.authorized_key:
+        user: "{{ item.0.username }}"
+        key: "{{ item.1 }}"
+        state: present
+      loop: "{{ users_to_create | subelements('ssh_keys', skip_missing=True) }}"
+      when: users_to_create | length > 0
+
+    # Configure sudo access
+    - name: Configure sudo access
+      ansible.builtin.copy:
+        content: |
+          {{ item.username }} ALL=(ALL) {{ 'NOPASSWD: ' if item.sudo_nopasswd | default(false) else '' }}ALL
+        dest: "/etc/sudoers.d/{{ item.username }}"
+        mode: '0440'
+        validate: /usr/sbin/visudo -cf %s
+      loop: "{{ users_to_create }}"
+      when:
+        - users_to_create | length > 0
+        - item.sudo | default(false) | bool
+
+    - name: Remove sudo access for non-sudo users
+      ansible.builtin.file:
+        path: "/etc/sudoers.d/{{ item.username }}"
+        state: absent
+      loop: "{{ users_to_create }}"
+      when:
+        - users_to_create | length > 0
+        - not (item.sudo | default(false) | bool)
+
+    # Password aging policy
+    - name: Set password aging policy
+      ansible.builtin.command: >
+        chage -M {{ item.password_max_age | default(password_max_age) }}
+        -W 14 {{ item.username }}
+      loop: "{{ users_to_create }}"
+      when:
+        - users_to_create | length > 0
+        - item.password_hash is defined
+        - item.password_hash != '!'
+      changed_when: false
+
+    # Lock/unlock accounts
+    - name: Lock user accounts
+      ansible.builtin.command: "passwd -l {{ item.username }}"
+      loop: "{{ users_to_create }}"
+      when:
+        - users_to_create | length > 0
+        - item.locked | default(false) | bool
+      changed_when: false
+
+    - name: Unlock user accounts
+      ansible.builtin.command: "passwd -u {{ item.username }}"
+      loop: "{{ users_to_create }}"
+      when:
+        - users_to_create | length > 0
+        - not (item.locked | default(false) | bool)
+        - item.password_hash is defined
+        - item.password_hash != '!'
+      changed_when: false
+      failed_when: false
+
+    # Remove users
+    - name: Remove user accounts
+      ansible.builtin.user:
+        name: "{{ item.username }}"
+        state: absent
+        remove: "{{ item.remove_home | default(true) }}"
+        force: "{{ item.force | default(false) }}"
+      loop: "{{ users_to_remove }}"
+      when: users_to_remove | length > 0
+
+    - name: Remove sudoers file for removed users
+      ansible.builtin.file:
+        path: "/etc/sudoers.d/{{ item.username }}"
+        state: absent
+      loop: "{{ users_to_remove }}"
+      when: users_to_remove | length > 0
+
+    # Report results
+    - name: Gather created users info
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ item.username }}"
+      loop: "{{ users_to_create }}"
+      register: created_users_info
+      when: users_to_create | length > 0
+      failed_when: false
+
+    - name: Report user management status
+      ansible.builtin.set_fact:
+        noveris_user_management:
+          users_created: "{{ users_to_create | map(attribute='username') | list }}"
+          users_removed: "{{ users_to_remove | map(attribute='username') | list }}"
+          timestamp: "{{ ansible_date_time.iso8601 }}"

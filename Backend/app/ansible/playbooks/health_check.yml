@@ -1,0 +1,322 @@
+---
+# Health Check Playbook - Verify Node Status and System Health
+# This playbook performs comprehensive health checks including:
+# - SSH connectivity verification
+# - System resource checks (disk, memory, CPU)
+# - Service status checks
+# - GPU/accelerator health (if available)
+
+- name: Node Health Check
+  hosts: all
+  gather_facts: true
+  become: false
+  vars:
+    # Health thresholds
+    disk_warning_percent: 80
+    disk_critical_percent: 90
+    memory_warning_percent: 80
+    memory_critical_percent: 90
+    # Output format
+    output_format: json  # json or yaml
+    # Check options
+    check_disk: true
+    check_memory: true
+    check_load: true
+    check_services: true
+    check_gpu: true
+    check_network: true
+
+  tasks:
+    # ==========================================================================
+    # Basic Connectivity
+    # ==========================================================================
+    - name: Verify SSH connectivity
+      ansible.builtin.ping:
+      register: ping_result
+
+    - name: Initialize health report
+      ansible.builtin.set_fact:
+        health_report:
+          hostname: "{{ ansible_hostname }}"
+          fqdn: "{{ ansible_fqdn }}"
+          check_time: "{{ ansible_date_time.iso8601 }}"
+          overall_status: "healthy"
+          checks: {}
+          warnings: []
+          errors: []
+
+    # ==========================================================================
+    # System Information
+    # ==========================================================================
+    - name: Collect system uptime
+      ansible.builtin.command: uptime -s
+      register: uptime_result
+      changed_when: false
+      failed_when: false
+
+    - name: Record system info
+      ansible.builtin.set_fact:
+        health_report: "{{ health_report | combine({
+          'system': {
+            'os': ansible_distribution ~ ' ' ~ ansible_distribution_version,
+            'kernel': ansible_kernel,
+            'architecture': ansible_architecture,
+            'uptime_since': uptime_result.stdout | default('unknown'),
+            'cpu_cores': ansible_processor_vcpus,
+            'memory_total_mb': ansible_memtotal_mb
+          }
+        }) }}"
+
+    # ==========================================================================
+    # Disk Space Check
+    # ==========================================================================
+    - name: Check disk space
+      ansible.builtin.shell: |
+        df -h --output=target,pcent,size,avail | tail -n +2 | while read mount usage size avail; do
+          pct=${usage%\%}
+          echo "$mount:$pct:$size:$avail"
+        done
+      register: disk_result
+      changed_when: false
+      when: check_disk
+
+    - name: Analyze disk usage
+      ansible.builtin.set_fact:
+        disk_checks: "{{ disk_checks | default([]) + [{
+          'mount': item.split(':')[0],
+          'used_percent': item.split(':')[1] | int,
+          'total_size': item.split(':')[2],
+          'available': item.split(':')[3],
+          'status': 'critical' if (item.split(':')[1] | int) >= disk_critical_percent
+                    else ('warning' if (item.split(':')[1] | int) >= disk_warning_percent else 'ok')
+        }] }}"
+      loop: "{{ disk_result.stdout_lines | default([]) }}"
+      when:
+        - check_disk
+        - disk_result is defined
+        - disk_result.stdout_lines is defined
+
+    - name: Update health report with disk checks
+      ansible.builtin.set_fact:
+        health_report: "{{ health_report | combine({
+          'checks': health_report.checks | combine({'disk': disk_checks | default([])})
+        }) }}"
+        health_warnings: "{{ health_report.warnings + (disk_checks | selectattr('status', 'equalto', 'warning') | map(attribute='mount') | map('regex_replace', '^(.*)$', 'Disk warning: \\1 usage high') | list) }}"
+        health_errors: "{{ health_report.errors + (disk_checks | selectattr('status', 'equalto', 'critical') | map(attribute='mount') | map('regex_replace', '^(.*)$', 'Disk critical: \\1 usage critical') | list) }}"
+      when: check_disk
+
+    # ==========================================================================
+    # Memory Check
+    # ==========================================================================
+    - name: Check memory usage
+      ansible.builtin.shell: |
+        free -m | awk 'NR==2{printf "%d:%d:%d:%.1f", $2, $3, $4, $3*100/$2}'
+      register: memory_result
+      changed_when: false
+      when: check_memory
+
+    - name: Analyze memory usage
+      ansible.builtin.set_fact:
+        memory_check:
+          total_mb: "{{ memory_result.stdout.split(':')[0] | int }}"
+          used_mb: "{{ memory_result.stdout.split(':')[1] | int }}"
+          free_mb: "{{ memory_result.stdout.split(':')[2] | int }}"
+          used_percent: "{{ memory_result.stdout.split(':')[3] | float }}"
+          status: "{{ 'critical' if (memory_result.stdout.split(':')[3] | float) >= memory_critical_percent
+                     else ('warning' if (memory_result.stdout.split(':')[3] | float) >= memory_warning_percent else 'ok') }}"
+      when:
+        - check_memory
+        - memory_result is defined
+
+    - name: Update health report with memory check
+      ansible.builtin.set_fact:
+        health_report: "{{ health_report | combine({
+          'checks': health_report.checks | combine({'memory': memory_check | default({})})
+        }) }}"
+      when: check_memory
+
+    # ==========================================================================
+    # Load Average Check
+    # ==========================================================================
+    - name: Check load average
+      ansible.builtin.shell: |
+        cat /proc/loadavg | awk '{print $1":"$2":"$3}'
+      register: load_result
+      changed_when: false
+      when: check_load
+
+    - name: Analyze load average
+      ansible.builtin.set_fact:
+        load_check:
+          load_1m: "{{ load_result.stdout.split(':')[0] | float }}"
+          load_5m: "{{ load_result.stdout.split(':')[1] | float }}"
+          load_15m: "{{ load_result.stdout.split(':')[2] | float }}"
+          cores: "{{ ansible_processor_vcpus }}"
+          status: "{{ 'warning' if (load_result.stdout.split(':')[0] | float) > (ansible_processor_vcpus * 0.7)
+                     else 'ok' }}"
+      when:
+        - check_load
+        - load_result is defined
+
+    - name: Update health report with load check
+      ansible.builtin.set_fact:
+        health_report: "{{ health_report | combine({
+          'checks': health_report.checks | combine({'load': load_check | default({})})
+        }) }}"
+      when: check_load
+
+    # ==========================================================================
+    # GPU Health Check (NVIDIA)
+    # ==========================================================================
+    - name: Check for nvidia-smi
+      ansible.builtin.command: which nvidia-smi
+      register: nvidia_check
+      failed_when: false
+      changed_when: false
+      when: check_gpu
+
+    - name: Query NVIDIA GPU health
+      ansible.builtin.command: >
+        nvidia-smi --query-gpu=index,name,temperature.gpu,utilization.gpu,memory.used,memory.total,power.draw
+        --format=csv,noheader,nounits
+      register: nvidia_health
+      failed_when: false
+      changed_when: false
+      when:
+        - check_gpu
+        - nvidia_check.rc == 0
+
+    - name: Parse NVIDIA GPU health
+      ansible.builtin.set_fact:
+        gpu_checks: "{{ gpu_checks | default([]) + [{
+          'index': item.split(',')[0] | trim | int,
+          'name': item.split(',')[1] | trim,
+          'temperature_c': item.split(',')[2] | trim | int,
+          'utilization_percent': item.split(',')[3] | trim | int,
+          'memory_used_mb': item.split(',')[4] | trim | int,
+          'memory_total_mb': item.split(',')[5] | trim | int,
+          'power_watts': item.split(',')[6] | trim | default(0),
+          'status': 'warning' if (item.split(',')[2] | trim | int) > 80 else 'ok'
+        }] }}"
+      loop: "{{ nvidia_health.stdout_lines | default([]) }}"
+      when:
+        - check_gpu
+        - nvidia_check is defined
+        - nvidia_check.rc == 0
+        - nvidia_health is defined
+        - nvidia_health.rc == 0
+
+    - name: Update health report with GPU checks
+      ansible.builtin.set_fact:
+        health_report: "{{ health_report | combine({
+          'checks': health_report.checks | combine({'gpu': gpu_checks | default([])})
+        }) }}"
+      when: check_gpu
+
+    # ==========================================================================
+    # Network Connectivity Check
+    # ==========================================================================
+    - name: Check network interfaces
+      ansible.builtin.shell: |
+        ip -j link show | jq -c '.[] | select(.operstate == "UP") | {name: .ifname, state: .operstate}'
+      register: network_interfaces
+      failed_when: false
+      changed_when: false
+      when: check_network
+
+    - name: Check default gateway reachability
+      ansible.builtin.shell: |
+        gateway=$(ip route | grep default | awk '{print $3}' | head -1)
+        if [ -n "$gateway" ]; then
+          ping -c 1 -W 2 $gateway > /dev/null 2>&1 && echo "reachable" || echo "unreachable"
+        else
+          echo "no_gateway"
+        fi
+      register: gateway_check
+      changed_when: false
+      when: check_network
+
+    - name: Update health report with network check
+      ansible.builtin.set_fact:
+        health_report: "{{ health_report | combine({
+          'checks': health_report.checks | combine({
+            'network': {
+              'interfaces_up': (network_interfaces.stdout_lines | default([]) | length),
+              'gateway_status': gateway_check.stdout | default('unknown')
+            }
+          })
+        }) }}"
+      when: check_network
+
+    # ==========================================================================
+    # Service Checks
+    # ==========================================================================
+    - name: Check critical services
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+      register: service_status
+      failed_when: false
+      loop:
+        - sshd
+        - cron
+      when: check_services
+
+    - name: Compile service status
+      ansible.builtin.set_fact:
+        services_check: "{{ services_check | default({}) | combine({
+          item.item: {
+            'active': item.status.ActiveState | default('unknown'),
+            'status': 'ok' if item.status.ActiveState | default('') == 'active' else 'warning'
+          }
+        }) }}"
+      loop: "{{ service_status.results | default([]) }}"
+      when:
+        - check_services
+        - service_status is defined
+
+    - name: Update health report with service checks
+      ansible.builtin.set_fact:
+        health_report: "{{ health_report | combine({
+          'checks': health_report.checks | combine({'services': services_check | default({})})
+        }) }}"
+      when: check_services
+
+    # ==========================================================================
+    # Final Status Computation
+    # ==========================================================================
+    - name: Determine overall health status
+      ansible.builtin.set_fact:
+        health_report: "{{ health_report | combine({
+          'overall_status': 'critical' if (health_errors | default([]) | length) > 0
+                           else ('warning' if (health_warnings | default([]) | length) > 0 else 'healthy'),
+          'warnings': health_warnings | default([]),
+          'errors': health_errors | default([])
+        }) }}"
+
+    # ==========================================================================
+    # Output
+    # ==========================================================================
+    - name: Display health report summary
+      ansible.builtin.debug:
+        msg:
+          - "===== Health Check Summary ====="
+          - "Host: {{ health_report.hostname }}"
+          - "Status: {{ health_report.overall_status | upper }}"
+          - "Warnings: {{ health_report.warnings | length }}"
+          - "Errors: {{ health_report.errors | length }}"
+          - "================================"
+
+    - name: Write health report to JSON file
+      ansible.builtin.copy:
+        content: "{{ health_report | to_nice_json }}"
+        dest: "/tmp/noveris_health_{{ inventory_hostname }}.json"
+        mode: '0644'
+
+    - name: Set callback fact for Noveris
+      ansible.builtin.set_fact:
+        noveris_health_check: "{{ health_report }}"
+
+  handlers:
+    - name: Health check complete
+      ansible.builtin.debug:
+        msg: "Health check completed for {{ ansible_hostname }}"

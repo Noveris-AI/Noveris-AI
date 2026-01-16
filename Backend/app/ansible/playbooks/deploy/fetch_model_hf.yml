@@ -1,0 +1,122 @@
+---
+# fetch_model_hf.yml
+#
+# Download model from Hugging Face using huggingface_hub.
+# Supports both public and gated models (with token).
+#
+# Reference: https://huggingface.co/docs/huggingface_hub/en/guides/download
+
+- name: Fetch model from Hugging Face
+  hosts: all
+  become: true
+  become_user: "{{ deploy_user | default('modelserve') }}"
+  gather_facts: false
+
+  vars:
+    model_cache_root: "{{ model_cache_root | default('/data/models') }}"
+    hf_home: "{{ model_cache_root }}/huggingface"
+    model_repo_id: "{{ model_repo_id }}"
+    model_revision: "{{ model_revision | default('main') }}"
+    hf_token: "{{ hf_token | default('') }}"
+    hf_endpoint: "{{ hf_endpoint | default('') }}"
+    download_timeout: "{{ download_timeout | default(3600) }}"
+
+  environment:
+    HF_HOME: "{{ hf_home }}"
+    HF_TOKEN: "{{ hf_token }}"
+    HF_ENDPOINT: "{{ hf_endpoint }}"
+    HF_HUB_ENABLE_HF_TRANSFER: "{{ hf_hub_enable_hf_transfer | default('false') }}"
+
+  tasks:
+    - name: Check if Python 3 is available
+      ansible.builtin.command:
+        cmd: python3 --version
+      register: python_check
+      changed_when: false
+      failed_when: python_check.rc != 0
+
+    - name: Ensure huggingface_hub is installed
+      ansible.builtin.pip:
+        name:
+          - huggingface_hub>=0.20.0
+          - hf_transfer
+        state: present
+        extra_args: --user
+
+    - name: Create model download script
+      ansible.builtin.copy:
+        dest: "/tmp/download_model_{{ deployment_id }}.py"
+        mode: "0755"
+        content: |
+          #!/usr/bin/env python3
+          """Download model from Hugging Face."""
+          import os
+          import sys
+          from huggingface_hub import snapshot_download, HfApi
+
+          def main():
+              repo_id = "{{ model_repo_id }}"
+              revision = "{{ model_revision }}"
+              cache_dir = "{{ hf_home }}"
+
+              print(f"Downloading model: {repo_id} (revision: {revision})")
+              print(f"Cache directory: {cache_dir}")
+
+              try:
+                  # Check if model exists and is accessible
+                  api = HfApi()
+                  model_info = api.model_info(repo_id, revision=revision)
+                  print(f"Model found: {model_info.modelId}")
+                  print(f"Model size: {model_info.safetensors.total if model_info.safetensors else 'unknown'} bytes")
+
+                  # Download model
+                  local_dir = snapshot_download(
+                      repo_id=repo_id,
+                      revision=revision,
+                      cache_dir=cache_dir,
+                      resume_download=True,
+                      local_files_only=False,
+                  )
+
+                  print(f"Model downloaded to: {local_dir}")
+
+                  # Output the path for Ansible to capture
+                  with open("/tmp/model_path_{{ deployment_id }}.txt", "w") as f:
+                      f.write(local_dir)
+
+                  return 0
+              except Exception as e:
+                  print(f"Error downloading model: {e}", file=sys.stderr)
+                  return 1
+
+          if __name__ == "__main__":
+              sys.exit(main())
+
+    - name: Download model from Hugging Face
+      ansible.builtin.command:
+        cmd: python3 "/tmp/download_model_{{ deployment_id }}.py"
+      register: download_result
+      async: "{{ download_timeout }}"
+      poll: 30
+      changed_when: true
+
+    - name: Read model local path
+      ansible.builtin.slurp:
+        src: "/tmp/model_path_{{ deployment_id }}.txt"
+      register: model_path_file
+
+    - name: Set model local path fact
+      ansible.builtin.set_fact:
+        model_local_path: "{{ model_path_file.content | b64decode | trim }}"
+
+    - name: Display model path
+      ansible.builtin.debug:
+        msg: "Model downloaded to: {{ model_local_path }}"
+
+    - name: Clean up temporary files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "/tmp/download_model_{{ deployment_id }}.py"
+        - "/tmp/model_path_{{ deployment_id }}.txt"

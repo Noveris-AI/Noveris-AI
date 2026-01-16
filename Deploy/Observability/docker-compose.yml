@@ -1,0 +1,169 @@
+# Observability Stack for Noveris AI Platform
+# Includes: Prometheus, Loki, Tempo, Alertmanager, Grafana
+#
+# Usage:
+#   docker-compose up -d
+#
+# Access:
+#   - Prometheus: http://localhost:9090
+#   - Grafana: http://localhost:3000 (admin/admin)
+#   - Alertmanager: http://localhost:9093
+#   - Loki: http://localhost:3100
+#   - Tempo: http://localhost:3200
+
+services:
+  # Prometheus - Metrics Collection
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: noveris-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-15d}'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+      - '--web.external-url=${PROMETHEUS_EXTERNAL_URL:-http://localhost:9090}'
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./config/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - noveris-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Alertmanager - Alert Management
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: noveris-alertmanager
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=${ALERTMANAGER_EXTERNAL_URL:-http://localhost:9093}'
+      - '--cluster.listen-address='
+    ports:
+      - "${ALERTMANAGER_PORT:-9093}:9093"
+    volumes:
+      - ./config/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - noveris-network
+
+  # Loki - Log Aggregation
+  loki:
+    image: grafana/loki:2.9.6
+    container_name: noveris-loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/loki.yml
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    volumes:
+      - ./config/loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki_data:/loki
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - noveris-network
+
+  # Tempo - Distributed Tracing
+  tempo:
+    image: grafana/tempo:2.4.1
+    container_name: noveris-tempo
+    restart: unless-stopped
+    command: [ "-config.file=/etc/tempo/tempo.yml" ]
+    ports:
+      - "${TEMPO_PORT:-3200}:3200"      # Tempo query
+      - "${TEMPO_OTLP_GRPC:-4317}:4317" # OTLP gRPC
+      - "${TEMPO_OTLP_HTTP:-4318}:4318" # OTLP HTTP
+      - "${TEMPO_ZIPKIN:-9411}:9411"    # Zipkin
+    volumes:
+      - ./config/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo_data:/var/tempo
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3200/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - noveris-network
+
+  # Grafana - Visualization
+  grafana:
+    image: grafana/grafana:10.4.1
+    container_name: noveris-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3000}
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource,grafana-piechart-panel
+      GF_AUTH_ANONYMOUS_ENABLED: ${GRAFANA_ANONYMOUS_ENABLED:-false}
+      GF_FEATURE_TOGGLES_ENABLE: traceqlEditor tempoSearch tempoBackendSearch tempoApmTable
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    networks:
+      - noveris-network
+
+  # Promtail - Log Shipper (optional, for local log collection)
+  promtail:
+    image: grafana/promtail:2.9.6
+    container_name: noveris-promtail
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/promtail.yml
+    volumes:
+      - ./config/promtail/promtail.yml:/etc/promtail/promtail.yml:ro
+      - /var/log:/var/log:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+    networks:
+      - noveris-network
+    profiles:
+      - logging
+
+volumes:
+  prometheus_data:
+    driver: local
+  alertmanager_data:
+    driver: local
+  loki_data:
+    driver: local
+  tempo_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  noveris-network:
+    external: true
+    name: noveris-network

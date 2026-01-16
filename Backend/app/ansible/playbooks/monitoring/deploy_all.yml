@@ -1,0 +1,238 @@
+---
+# Full Observability Stack Deployment Playbook
+# Deploys all monitoring exporters to target nodes
+#
+# This playbook will:
+# 1. Deploy Node Exporter on all nodes
+# 2. Deploy DCGM Exporter on NVIDIA GPU nodes
+# 3. Deploy Ascend Exporter on Huawei NPU nodes
+# 4. Deploy Promtail on all nodes (optional)
+#
+# Usage:
+#   ansible-playbook -i inventory.yml monitoring/deploy_all.yml
+#   ansible-playbook -i inventory.yml monitoring/deploy_all.yml --skip-tags promtail
+#   ansible-playbook -i inventory.yml monitoring/deploy_all.yml --tags node_exporter
+
+- name: Deploy Full Observability Stack
+  hosts: all
+  gather_facts: true
+  become: true
+  vars:
+    # Node Exporter settings
+    node_exporter_port: 9100
+    node_exporter_version: "1.7.0"
+
+    # DCGM Exporter settings
+    dcgm_exporter_port: 9400
+    dcgm_exporter_version: "3.3.0-3.2.0-ubuntu22.04"
+
+    # Ascend Exporter settings
+    ascend_exporter_port: 9401
+    ascend_toolkit_path: /usr/local/Ascend
+
+    # Promtail settings
+    promtail_port: 9080
+    promtail_version: "2.9.6"
+    loki_url: "http://loki:3100/loki/api/v1/push"
+
+    # Feature flags
+    deploy_promtail: true
+
+  tasks:
+    # ==========================================================================
+    # Node Exporter (all nodes)
+    # ==========================================================================
+    - name: Deploy Node Exporter
+      tags:
+        - node_exporter
+        - exporters
+      block:
+        - name: Check if Node Exporter is installed
+          ansible.builtin.stat:
+            path: /usr/local/bin/node_exporter
+          register: node_exporter_binary
+
+        - name: Download Node Exporter
+          ansible.builtin.get_url:
+            url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+            dest: /tmp/node_exporter.tar.gz
+            mode: '0644'
+          when: not node_exporter_binary.stat.exists
+
+        - name: Extract Node Exporter
+          ansible.builtin.unarchive:
+            src: /tmp/node_exporter.tar.gz
+            dest: /tmp/
+            remote_src: true
+          when: not node_exporter_binary.stat.exists
+
+        - name: Install Node Exporter binary
+          ansible.builtin.copy:
+            src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+            dest: /usr/local/bin/node_exporter
+            mode: '0755'
+            remote_src: true
+          when: not node_exporter_binary.stat.exists
+
+        - name: Create node_exporter user
+          ansible.builtin.user:
+            name: node_exporter
+            system: true
+            shell: /sbin/nologin
+            create_home: false
+
+        - name: Create Node Exporter systemd service
+          ansible.builtin.copy:
+            dest: /etc/systemd/system/node_exporter.service
+            mode: '0644'
+            content: |
+              [Unit]
+              Description=Prometheus Node Exporter
+              After=network.target
+
+              [Service]
+              Type=simple
+              User=node_exporter
+              ExecStart=/usr/local/bin/node_exporter --web.listen-address=:{{ node_exporter_port }}
+              Restart=always
+              RestartSec=10
+
+              [Install]
+              WantedBy=multi-user.target
+
+        - name: Enable Node Exporter
+          ansible.builtin.systemd:
+            name: node_exporter
+            enabled: true
+            state: started
+            daemon_reload: true
+
+    # ==========================================================================
+    # DCGM Exporter (NVIDIA GPU nodes)
+    # ==========================================================================
+    - name: Deploy DCGM Exporter
+      tags:
+        - dcgm_exporter
+        - gpu
+        - exporters
+      block:
+        - name: Check for NVIDIA GPU
+          ansible.builtin.command: nvidia-smi
+          register: nvidia_check
+          failed_when: false
+          changed_when: false
+
+        - name: Install DCGM (Ubuntu)
+          ansible.builtin.apt:
+            name: datacenter-gpu-manager
+            state: present
+            update_cache: true
+          when:
+            - nvidia_check.rc == 0
+            - ansible_distribution == "Ubuntu"
+          failed_when: false
+
+        - name: Create DCGM Exporter systemd service
+          ansible.builtin.copy:
+            dest: /etc/systemd/system/dcgm-exporter.service
+            mode: '0644'
+            content: |
+              [Unit]
+              Description=NVIDIA DCGM Exporter
+              After=network.target nvidia-dcgm.service
+              Wants=nvidia-dcgm.service
+
+              [Service]
+              Type=simple
+              ExecStart=/usr/bin/dcgm-exporter --address :{{ dcgm_exporter_port }}
+              Restart=always
+              RestartSec=10
+
+              [Install]
+              WantedBy=multi-user.target
+          when: nvidia_check.rc == 0
+
+        - name: Enable DCGM services
+          ansible.builtin.systemd:
+            name: "{{ item }}"
+            enabled: true
+            state: started
+            daemon_reload: true
+          loop:
+            - nvidia-dcgm
+            - dcgm-exporter
+          when: nvidia_check.rc == 0
+          failed_when: false
+
+    # ==========================================================================
+    # Ascend NPU Exporter (Huawei NPU nodes)
+    # ==========================================================================
+    - name: Deploy Ascend NPU Exporter
+      tags:
+        - ascend_exporter
+        - npu
+        - exporters
+      block:
+        - name: Check for Ascend NPU
+          ansible.builtin.command: "{{ ascend_toolkit_path }}/ascend-toolkit/latest/bin/npu-smi info"
+          register: npu_check
+          failed_when: false
+          changed_when: false
+          environment:
+            LD_LIBRARY_PATH: "{{ ascend_toolkit_path }}/ascend-toolkit/latest/lib64"
+
+        - name: Include Ascend exporter tasks
+          ansible.builtin.include_tasks: ascend_exporter.yml
+          when: npu_check.rc == 0
+
+    # ==========================================================================
+    # Promtail (optional, all nodes)
+    # ==========================================================================
+    - name: Deploy Promtail
+      tags:
+        - promtail
+        - logging
+      when: deploy_promtail | bool
+      block:
+        - name: Include Promtail tasks
+          ansible.builtin.include_tasks: promtail.yml
+
+    # ==========================================================================
+    # Summary
+    # ==========================================================================
+    - name: Collect deployment status
+      tags:
+        - always
+      block:
+        - name: Check Node Exporter
+          ansible.builtin.uri:
+            url: "http://localhost:{{ node_exporter_port }}/metrics"
+            return_content: false
+          register: node_exporter_status
+          failed_when: false
+
+        - name: Check DCGM Exporter
+          ansible.builtin.uri:
+            url: "http://localhost:{{ dcgm_exporter_port }}/metrics"
+            return_content: false
+          register: dcgm_status
+          failed_when: false
+
+        - name: Check Ascend Exporter
+          ansible.builtin.uri:
+            url: "http://localhost:{{ ascend_exporter_port }}/metrics"
+            return_content: false
+          register: ascend_status
+          failed_when: false
+
+        - name: Display deployment summary
+          ansible.builtin.debug:
+            msg:
+              - "============================================"
+              - "Observability Stack Deployment Summary"
+              - "Host: {{ ansible_hostname }}"
+              - "============================================"
+              - "Node Exporter ({{ node_exporter_port }}): {{ 'Running' if node_exporter_status.status | default(0) == 200 else 'Not running' }}"
+              - "DCGM Exporter ({{ dcgm_exporter_port }}): {{ 'Running' if dcgm_status.status | default(0) == 200 else 'Not running/No GPU' }}"
+              - "Ascend Exporter ({{ ascend_exporter_port }}): {{ 'Running' if ascend_status.status | default(0) == 200 else 'Not running/No NPU' }}"
+              - "============================================"

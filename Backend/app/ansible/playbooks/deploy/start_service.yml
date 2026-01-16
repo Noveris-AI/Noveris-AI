@@ -1,0 +1,44 @@
+---
+# start_service.yml
+#
+# Start the model serving service.
+
+- name: Start model serving service
+  hosts: all
+  become: true
+  gather_facts: false
+
+  vars:
+    service_name: "noveris-model-{{ deployment_id[:12] }}"
+
+  tasks:
+    - name: Start the service
+      ansible.builtin.systemd:
+        name: "{{ service_name }}"
+        state: started
+        enabled: true
+
+    - name: Wait for service to start
+      ansible.builtin.wait_for:
+        port: "{{ port }}"
+        host: "{{ host | default('127.0.0.1') }}"
+        delay: 5
+        timeout: 120
+      when: host != '0.0.0.0'
+
+    - name: Wait for service to start (any interface)
+      ansible.builtin.wait_for:
+        port: "{{ port }}"
+        host: "127.0.0.1"
+        delay: 5
+        timeout: 120
+      when: host == '0.0.0.0'
+
+    - name: Check service status
+      ansible.builtin.systemd:
+        name: "{{ service_name }}"
+      register: service_status
+
+    - name: Display service status
+      ansible.builtin.debug:
+        msg: "Service {{ service_name }} is {{ service_status.status.ActiveState }}"

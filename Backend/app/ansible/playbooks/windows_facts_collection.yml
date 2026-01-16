@@ -1,0 +1,151 @@
+---
+# Windows Facts Collection Playbook
+# Collects comprehensive system information from Windows nodes
+# Used by the facts collection API endpoint
+
+- name: Windows Facts Collection
+  hosts: all
+  gather_facts: true
+
+  tasks:
+    - name: Collect basic Windows facts
+      ansible.windows.setup:
+      register: windows_facts
+
+    - name: Get detailed CPU information
+      ansible.windows.win_shell: |
+        Get-WmiObject Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors, MaxClockSpeed | ConvertTo-Json
+      register: cpu_info
+      changed_when: false
+
+    - name: Get memory information
+      ansible.windows.win_shell: |
+        $mem = Get-WmiObject Win32_ComputerSystem
+        $os = Get-WmiObject Win32_OperatingSystem
+        @{
+          TotalPhysicalMemoryMB = [math]::Round($mem.TotalPhysicalMemory / 1MB)
+          FreePhysicalMemoryMB = [math]::Round($os.FreePhysicalMemory / 1KB)
+          TotalVirtualMemoryMB = [math]::Round($os.TotalVirtualMemorySize / 1KB)
+          FreeVirtualMemoryMB = [math]::Round($os.FreeVirtualMemory / 1KB)
+        } | ConvertTo-Json
+      register: memory_info
+      changed_when: false
+
+    - name: Get disk information
+      ansible.windows.win_shell: |
+        Get-WmiObject Win32_LogicalDisk -Filter "DriveType=3" |
+        Select-Object DeviceID, @{N='SizeGB';E={[math]::Round($_.Size/1GB)}}, @{N='FreeSpaceGB';E={[math]::Round($_.FreeSpace/1GB)}}, FileSystem |
+        ConvertTo-Json
+      register: disk_info
+      changed_when: false
+
+    - name: Get network adapter information
+      ansible.windows.win_shell: |
+        Get-NetAdapter | Where-Object Status -eq 'Up' |
+        Select-Object Name, InterfaceDescription, MacAddress, LinkSpeed |
+        ConvertTo-Json
+      register: network_adapters
+      changed_when: false
+      failed_when: false
+
+    - name: Get IP configuration
+      ansible.windows.win_shell: |
+        Get-NetIPAddress | Where-Object {$_.AddressFamily -eq 'IPv4' -and $_.IPAddress -ne '127.0.0.1'} |
+        Select-Object InterfaceAlias, IPAddress, PrefixLength |
+        ConvertTo-Json
+      register: ip_config
+      changed_when: false
+      failed_when: false
+
+    - name: Get installed Windows features
+      ansible.windows.win_shell: |
+        Get-WindowsFeature | Where-Object Installed | Select-Object Name, DisplayName | ConvertTo-Json
+      register: windows_features
+      changed_when: false
+      failed_when: false
+      when: ansible_os_installation_type == "Server"
+
+    - name: Get GPU information (if available)
+      ansible.windows.win_shell: |
+        Get-WmiObject Win32_VideoController |
+        Select-Object Name, AdapterRAM, DriverVersion, VideoProcessor |
+        ConvertTo-Json
+      register: gpu_info
+      changed_when: false
+      failed_when: false
+
+    - name: Check for NVIDIA GPU
+      ansible.windows.win_shell: |
+        if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) {
+          nvidia-smi --query-gpu=name,memory.total,driver_version,compute_cap --format=csv,noheader,nounits
+        } else {
+          Write-Output "NVIDIA GPU not found or nvidia-smi not available"
+        }
+      register: nvidia_gpu_info
+      changed_when: false
+      failed_when: false
+
+    - name: Get Windows Update status
+      ansible.windows.win_shell: |
+        $Session = New-Object -ComObject Microsoft.Update.Session
+        $Searcher = $Session.CreateUpdateSearcher()
+        $HistoryCount = $Searcher.GetTotalHistoryCount()
+        $Updates = $Searcher.QueryHistory(0, [Math]::Min($HistoryCount, 5))
+        @{
+          TotalHistoryCount = $HistoryCount
+          RecentUpdates = $Updates | Select-Object Title, Date, ResultCode
+        } | ConvertTo-Json -Depth 3
+      register: windows_updates
+      changed_when: false
+      failed_when: false
+
+    - name: Get installed software (top 20)
+      ansible.windows.win_shell: |
+        Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* |
+        Select-Object DisplayName, DisplayVersion, Publisher, InstallDate |
+        Where-Object DisplayName |
+        Sort-Object DisplayName |
+        Select-Object -First 20 |
+        ConvertTo-Json
+      register: installed_software
+      changed_when: false
+      failed_when: false
+
+    - name: Compile all facts
+      ansible.builtin.set_fact:
+        noveris_windows_facts:
+          collected_at: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+          collection_method: "ansible"
+          ansible_version: "{{ ansible_version.full }}"
+          hostname: "{{ ansible_hostname }}"
+          fqdn: "{{ ansible_fqdn | default(ansible_hostname) }}"
+          os:
+            family: "{{ ansible_os_family }}"
+            distribution: "{{ ansible_distribution }}"
+            version: "{{ ansible_distribution_version }}"
+            build: "{{ ansible_os_product_type | default('unknown') }}"
+            architecture: "{{ ansible_architecture }}"
+            installation_type: "{{ ansible_os_installation_type | default('unknown') }}"
+          cpu:
+            model: "{{ (cpu_info.stdout | from_json).Name | default('unknown') }}"
+            cores: "{{ (cpu_info.stdout | from_json).NumberOfCores | default(0) }}"
+            logical_processors: "{{ (cpu_info.stdout | from_json).NumberOfLogicalProcessors | default(0) }}"
+            max_clock_mhz: "{{ (cpu_info.stdout | from_json).MaxClockSpeed | default(0) }}"
+          memory: "{{ memory_info.stdout | from_json }}"
+          disks: "{{ disk_info.stdout | from_json }}"
+          network:
+            adapters: "{{ (network_adapters.stdout | default('[]')) | from_json }}"
+            ip_addresses: "{{ (ip_config.stdout | default('[]')) | from_json }}"
+          gpu: "{{ (gpu_info.stdout | default('[]')) | from_json }}"
+          nvidia_info: "{{ nvidia_gpu_info.stdout | default('') }}"
+          windows_features: "{{ (windows_features.stdout | default('[]')) | from_json }}"
+          recent_updates: "{{ (windows_updates.stdout | default('{}')) | from_json }}"
+          installed_software: "{{ (installed_software.stdout | default('[]')) | from_json }}"
+
+    - name: Display summary
+      ansible.builtin.debug:
+        msg: >-
+          Collected facts for {{ ansible_hostname }}:
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }},
+          CPU: {{ (cpu_info.stdout | from_json).NumberOfCores | default(0) }} cores,
+          Memory: {{ (memory_info.stdout | from_json).TotalPhysicalMemoryMB | default(0) }} MB

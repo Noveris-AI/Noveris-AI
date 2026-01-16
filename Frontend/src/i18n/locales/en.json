@@ -1,0 +1,992 @@
+{
+  "user": {
+    "profile": "Profile",
+    "logout": "Sign Out",
+    "security": "Security & Sessions",
+    "notifications": "Notification Settings",
+    "help": "Help & Docs",
+    "about": "About",
+    "superAdmin": "Super Admin",
+    "member": "Member",
+    "switchTenant": "Switch Workspace",
+    "logoutSuccess": "Signed out successfully",
+    "role": "Role"
+  },
+  "common": {
+    "loading": "Loading...",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "close": "Close",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "view": "View",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "export": "Export",
+    "import": "Import",
+    "add": "Add",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "configured": "Configured",
+    "notConfigured": "Not configured",
+    "days": "days",
+    "minutes": "minutes",
+    "refresh": "Refresh",
+    "saveChanges": "Save Changes",
+    "copy": "Copy",
+    "copied": "Copied!"
+  },
+  "auth": {
+    "brand": {
+      "name": "Noveris"
+    },
+    "passwordStrength": {
+      "title": "Password Strength",
+      "empty": "Enter password to assess strength",
+      "veryWeak": "Very Weak",
+      "weak": "Weak",
+      "fair": "Fair",
+      "good": "Good",
+      "strong": "Strong",
+      "rules": {
+        "minLength": "At least 8 characters",
+        "upper": "Uppercase letter",
+        "lower": "Lowercase letter",
+        "digit": "Number",
+        "symbol": "Special character"
+      },
+      "tip": "Consider using longer passwords (12+ characters) and avoid common words or personal information."
+    },
+    "login": {
+      "title": "Sign in to your account",
+      "subtitle": "Enter your credentials to access your account",
+      "email": {
+        "label": "Email address",
+        "placeholder": "Enter your email address",
+        "required": "Please enter your email address",
+        "invalid": "Please enter a valid email address"
+      },
+      "password": {
+        "label": "Password",
+        "placeholder": "Enter your password",
+        "required": "Please enter your password",
+        "toggleVisibility": "Toggle password visibility"
+      },
+      "rememberMe": {
+        "label": "Remember me"
+      },
+      "forgotPassword": {
+        "link": "Forgot password?"
+      },
+      "submit": "Sign in",
+      "ssoLogin": "Login with SSO",
+      "or": "or",
+      "noAccount": "Don't have an account?",
+      "signUp": "Sign up",
+      "loading": "Signing in...",
+      "success": "Sign in successful",
+      "error": {
+        "invalid": "Invalid email or password",
+        "network": "Network error, please try again",
+        "general": "Sign in failed, please try again"
+      }
+    },
+    "register": {
+      "title": "Create a new account",
+      "subtitle": "Fill in the information to create your account",
+      "email": {
+        "label": "Email address",
+        "placeholder": "Enter your email address",
+        "required": "Please enter your email address",
+        "invalid": "Please enter a valid email address",
+        "exists": "This email is already registered"
+      },
+      "verificationCode": {
+        "label": "Verification Code",
+        "placeholder": "Enter 6-digit code",
+        "required": "Please enter verification code",
+        "invalid": "Please enter a valid 6-digit code",
+        "send": "Send Code",
+        "sending": "Sending...",
+        "sent": "Code sent",
+        "resend": "Resend",
+        "expired": "Code expired",
+        "invalidCode": "Invalid code",
+        "sendFailed": "Failed to send verification code"
+      },
+      "password": {
+        "label": "Password",
+        "placeholder": "Enter your password",
+        "required": "Please enter your password",
+        "weak": "Password is too weak. Please include at least 8 characters with uppercase, lowercase, numbers, and special characters",
+        "confirm": {
+          "label": "Confirm password",
+          "placeholder": "Enter your password again",
+          "required": "Please confirm your password",
+          "mismatch": "Passwords do not match"
+        },
+        "toggleVisibility": "Toggle password visibility"
+      },
+      "submit": "Sign up",
+      "hasAccount": "Already have an account?",
+      "signIn": "Sign in",
+      "loading": "Signing up...",
+      "success": "Registration successful, please check your email for verification",
+      "error": {
+        "network": "Network error, please try again",
+        "general": "Registration failed, please try again"
+      }
+    },
+    "forgotPassword": {
+      "title": "Forgot password",
+      "subtitle": "Enter your email address and we'll send you instructions to reset your password",
+      "email": {
+        "label": "Email address",
+        "placeholder": "Enter your email address",
+        "required": "Please enter your email address",
+        "invalid": "Please enter a valid email address"
+      },
+      "submit": "Send reset instructions",
+      "loading": "Sending...",
+      "success": "Password reset instructions have been sent to your email",
+      "error": {
+        "network": "Network error, please try again",
+        "general": "Send failed, please try again"
+      },
+      "backToLogin": "Back to sign in"
+    },
+    "resetPassword": {
+      "title": "Reset Password",
+      "subtitle": {
+        "token": "Please set a new password to complete the reset.",
+        "code": "Enter the verification code and set a new password."
+      },
+      "fields": {
+        "code": {
+          "label": "Verification Code",
+          "placeholder": "Enter verification code"
+        },
+        "newPassword": {
+          "label": "New Password",
+          "placeholder": "Enter new password"
+        },
+        "confirmPassword": {
+          "label": "Confirm New Password",
+          "placeholder": "Confirm new password"
+        }
+      },
+      "passwordHint": {
+        "short": "8+ chars with upper/lower, number & symbol"
+      },
+      "actions": {
+        "submit": "Reset Password",
+        "backToLogin": "Back to Login"
+      },
+      "success": {
+        "title": "Password Updated",
+        "desc": "You can now sign in with your new password.",
+        "action": "Sign In"
+      },
+      "errors": {
+        "tokenInvalid": "Reset link is invalid or expired, please request a new reset",
+        "codeInvalid": "Verification code is invalid or expired",
+        "generic": "Reset failed, please try again later"
+      },
+      "tokenDetected": "Reset link verified",
+      "code": {
+        "label": "Reset code",
+        "placeholder": "Enter reset code",
+        "required": "Please enter reset code",
+        "invalid": "Invalid reset code"
+      },
+      "newPassword": {
+        "label": "New password",
+        "placeholder": "Enter new password",
+        "required": "Please enter new password",
+        "weak": "Password is too weak"
+      },
+      "confirmPassword": {
+        "label": "Confirm new password",
+        "placeholder": "Enter new password again",
+        "required": "Please confirm new password",
+        "mismatch": "Passwords do not match"
+      },
+      "submit": "Reset password",
+      "loading": "Resetting...",
+      "success": "Password reset successful, please sign in with your new password",
+      "error": {
+        "invalidToken": "Reset token is invalid or expired",
+        "invalidCode": "Invalid reset code",
+        "network": "Network error, please try again",
+        "general": "Reset failed, please try again"
+      },
+      "backToLogin": "Back to sign in"
+    },
+    "forgotPasswordPage": {
+      "title": "Forgot Password",
+      "subtitle": "Enter your email address and we'll send you instructions to reset your password",
+      "email": {
+        "label": "Email Address",
+        "placeholder": "Enter your email address"
+      },
+      "actions": {
+        "send": "Send Reset Instructions",
+        "resend": "Resend",
+        "resendCountdown": "Resend ({{seconds}}s)",
+        "backToLogin": "Back to Login"
+      },
+      "notice": {
+        "success": "If an account exists for this email, we'll send reset instructions.",
+        "checkSpam": "Please check your email, including the spam folder.",
+        "ssoHint": "If your organization uses SSO, reset via your identity provider or contact your admin."
+      },
+      "loading": "Sending...",
+      "error": {
+        "general": "Failed to send, please try again later"
+      }
+    },
+    "resetPasswordPage": {
+      "title": "Reset Password",
+      "tokenDetected": "Reset link verified",
+      "fields": {
+        "code": {
+          "label": "Verification Code",
+          "placeholder": "Enter verification code"
+        },
+        "newPassword": {
+          "label": "New Password",
+          "placeholder": "Enter new password"
+        },
+        "confirmPassword": {
+          "label": "Confirm New Password",
+          "placeholder": "Confirm new password"
+        }
+      },
+      "actions": {
+        "submit": "Reset Password",
+        "backToLogin": "Back to Login"
+      },
+      "notice": {
+        "ssoHint": "If your organization uses SSO, reset via your identity provider or contact your admin."
+      },
+      "success": {
+        "title": "Password Updated",
+        "desc": "You can now sign in with your new password.",
+        "action": "Sign In"
+      },
+      "loading": "Resetting..."
+    },
+    "left": {
+      "headline": "AI Lifecycle Governance Platform",
+      "description": "Unify delivery, observability, traffic governance, and identity policy for an auditable, compliant, enterprise AI runtime.",
+      "platformCard": {
+        "title": "AI Lifecycle Governance Platform",
+        "subtitle": "Unify delivery, observability, traffic governance, and identity policy for an auditable, compliant, enterprise AI runtime."
+      },
+      "capabilities": {
+        "observability": {
+          "title": "Observability & Cost Monitoring",
+          "desc": "Metrics, logs, traces & usage analysis"
+        },
+        "deployment": {
+          "title": "Deployment & Release Management",
+          "desc": "Environments, versioning, canary & rollback"
+        },
+        "gateway": {
+          "title": "Model Gateway & Intelligent Routing",
+          "desc": "Multi-model routing, traffic shaping & fallback"
+        },
+        "identity": {
+          "title": "Enterprise Identity & SSO",
+          "desc": "OIDC/SAML, RBAC & audit policies"
+        }
+      }
+    }
+  },
+  "nodes": {
+    "title": "Node Management",
+    "description": "Manage and monitor compute nodes in the cluster",
+    "addNode": "Add Node",
+    "noNodes": "No nodes",
+    "noNodesHint": "Start by adding your first compute node",
+    "searchPlaceholder": "Search node name, host address...",
+    "status": {
+      "all": "All Status",
+      "NEW": "New",
+      "READY": "Ready",
+      "UNREACHABLE": "Unreachable",
+      "MAINTENANCE": "Maintenance",
+      "DECOMMISSIONED": "Decommissioned"
+    },
+    "accelerators": {
+      "all": "All Types",
+      "nvidia_gpu": "NVIDIA GPU",
+      "amd_gpu": "AMD GPU",
+      "intel_gpu": "Intel GPU",
+      "huawei_npu": "Huawei NPU",
+      "thead_npu": "T-Head NPU",
+      "none": "No Accelerator"
+    },
+    "stats": {
+      "total": "Total Nodes",
+      "ready": "Ready",
+      "unreachable": "Unreachable",
+      "accelerators": "Total Accelerators"
+    },
+    "detail": {
+      "systemInfo": "System Info",
+      "cpu": "CPU",
+      "memory": "Memory",
+      "disk": "Disk",
+      "architecture": "Architecture",
+      "kernel": "Kernel",
+      "acceleratorDetail": "Accelerator Details",
+      "groups": "Groups",
+      "connectionInfo": "Connection Info",
+      "connectionType": "Connection Type",
+      "credentialStatus": "Credential Status",
+      "configured": "Configured",
+      "notConfigured": "Not Configured",
+      "lastSeen": "Last Seen"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "hardware": "Hardware",
+      "jobs": "Jobs",
+      "facts": "Facts"
+    },
+    "actions": {
+      "collectFacts": "Collect Facts",
+      "runJob": "Run Job",
+      "selectTemplate": "Select Job Template"
+    },
+    "wizard": {
+      "title": "Add Node",
+      "steps": {
+        "connection": "Connection",
+        "credentials": "Credentials",
+        "groups": "Groups & Tags",
+        "review": "Review"
+      },
+      "connection": {
+        "host": "Host Address",
+        "hostPlaceholder": "192.168.1.100 or node1.example.com",
+        "port": "Port",
+        "name": "Node Name",
+        "namePlaceholder": "node-001",
+        "nameHint": "Name used in Ansible inventory",
+        "displayName": "Display Name",
+        "displayNamePlaceholder": "GPU Server 01",
+        "connectionType": "Connection Type",
+        "ssh": "SSH Remote",
+        "local": "Local",
+        "sshUser": "SSH Username"
+      },
+      "credentials": {
+        "authType": "Auth Type",
+        "sshKey": "SSH Key",
+        "password": "Password",
+        "sshPrivateKey": "SSH Private Key",
+        "keyPassphrase": "Key Passphrase",
+        "keyPassphrasePlaceholder": "If key is password protected",
+        "sshPassword": "SSH Password",
+        "bastion": "Connect via Bastion Host",
+        "bastionHost": "Bastion Host",
+        "bastionPort": "Bastion Port",
+        "bastionUser": "Bastion Username",
+        "bastionPassword": "Bastion Password",
+        "localNoCredential": "Local connection does not require credentials"
+      },
+      "groups": {
+        "assignGroups": "Assign to Groups",
+        "noGroups": "No groups available",
+        "tags": "Tags",
+        "tagPlaceholder": "Enter tag and press Enter",
+        "addTag": "Add"
+      },
+      "review": {
+        "title": "Confirm & Create",
+        "hint": "After creating the node, the system will automatically collect node information (Facts), including hardware configuration and accelerator details."
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "prev": "Previous",
+        "next": "Next",
+        "create": "Create Node"
+      }
+    }
+  },
+  "jobs": {
+    "title": "Job Center",
+    "description": "View and manage Ansible job execution records",
+    "noJobs": "No job records",
+    "status": {
+      "all": "All Status",
+      "PENDING": "Pending",
+      "RUNNING": "Running",
+      "SUCCEEDED": "Succeeded",
+      "FAILED": "Failed",
+      "CANCELED": "Canceled"
+    },
+    "table": {
+      "task": "Task",
+      "status": "Status",
+      "nodeCount": "Nodes",
+      "duration": "Duration",
+      "createdAt": "Created At",
+      "createdBy": "Created By"
+    },
+    "detail": {
+      "taskInfo": "Task Info",
+      "targetNodes": "Target Nodes",
+      "executionLog": "Execution Log",
+      "autoScroll": "Auto Scroll",
+      "realTimeUpdate": "Real-time updating",
+      "waitingForLog": "Waiting for log output...",
+      "cancelExecution": "Cancel Execution",
+      "summary": {
+        "targetNodes": "Target Nodes",
+        "duration": "Duration",
+        "success": "Success",
+        "changed": "Changed",
+        "failed": "Failed"
+      }
+    },
+    "filters": {
+      "template": "Template",
+      "allTemplates": "All Templates",
+      "clearFilters": "Clear Filters"
+    }
+  },
+  "theme": {
+    "toggle": {
+      "light": "Switch to light mode",
+      "dark": "Switch to dark mode"
+    }
+  },
+  "language": {
+    "toggle": {
+      "zh-CN": "Switch to Chinese",
+      "en": "Switch to English"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "description": "Manage platform configuration, authentication, and security",
+    "nav": {
+      "auth": "Authentication",
+      "profile": "Profile",
+      "branding": "Branding",
+      "notifications": "Notifications",
+      "security": "Security",
+      "advanced": "Advanced"
+    },
+    "auth": {
+      "admin": "Administrator",
+      "members": "Members",
+      "webapp": "Web App",
+      "loginMethods": "Login Methods",
+      "loginMethodsDesc": "Configure how users can authenticate",
+      "emailPassword": "Email & Password",
+      "emailPasswordDesc": "Allow login with email and password",
+      "emailCode": "Email & Verification Code",
+      "emailCodeDesc": "Allow login with email verification code",
+      "sso": "Single Sign-On (SSO)",
+      "ssoDesc": "Allow login via external identity providers",
+      "session": "Session Settings",
+      "sessionDesc": "Configure session timeout and behavior",
+      "sessionTimeout": "Session Timeout",
+      "sessionTimeoutDesc": "Time before users need to re-authenticate",
+      "signup": "Workspace Registration",
+      "signupDesc": "Configure how users can join the platform",
+      "selfSignup": "Allow Self-Registration",
+      "selfSignupDesc": "Users can create accounts without invitation",
+      "autoCreateSpace": "Auto-create Personal Space",
+      "autoCreateSpaceDesc": "Automatically create a workspace for new users",
+      "autoCreateAdmin": "Auto-Create Administrator",
+      "autoCreateAdminDesc": "Automatically create admin accounts from SSO",
+      "autoCreateAdminWarning": "This is a security-sensitive setting. Only enable if you trust the configured SSO providers and have set email domain restrictions.",
+      "autoCreateAdminToggle": "Auto-Create Admin on First SSO Login",
+      "autoCreateAdminToggleDesc": "Create administrator account when user first logs in via SSO"
+    },
+    "sso": {
+      "providers": "SSO Identity Providers",
+      "providersDesc": "Manage external authentication providers",
+      "addProvider": "Add Provider",
+      "newOIDC": "New OIDC Provider",
+      "newOAuth2": "New OAuth2 Provider",
+      "newSAML": "New SAML Provider",
+      "noProviders": "No SSO providers configured",
+      "noProvidersHint": "Click \"Add Provider\" to configure SSO",
+      "confirmDelete": "Are you sure you want to delete this provider?",
+      "createProvider": "Create SSO Provider",
+      "editProvider": "Edit SSO Provider",
+      "providerName": "Provider Name",
+      "providerNamePlaceholder": "e.g., Corporate SSO",
+      "displayName": "Display Name",
+      "displayNamePlaceholder": "Name shown on login button",
+      "clientId": "Client ID",
+      "clientSecret": "Client Secret",
+      "issuerUrl": "Issuer URL",
+      "issuerUrlPlaceholder": "https://accounts.google.com",
+      "authorizationUrl": "Authorization URL",
+      "tokenUrl": "Token URL",
+      "userInfoUrl": "UserInfo URL",
+      "jwksUri": "JWKS URI",
+      "scopes": "Scopes",
+      "scopesPlaceholder": "openid profile email",
+      "emailDomains": "Allowed Email Domains",
+      "emailDomainsPlaceholder": "example.com, corp.example.com",
+      "emailDomainsHint": "Leave empty to allow all domains",
+      "attributeMapping": "Attribute Mapping",
+      "emailAttribute": "Email Attribute",
+      "nameAttribute": "Name Attribute",
+      "enabled": "Enabled",
+      "callbackUrl": "Callback URL",
+      "callbackUrlHint": "Configure this URL in your identity provider",
+      "metadataUrl": "Metadata URL",
+      "metadataUrlPlaceholder": "https://idp.example.com/metadata",
+      "entityId": "Entity ID",
+      "acsUrl": "ACS URL",
+      "acsUrlHint": "Assertion Consumer Service URL for your IdP",
+      "certificate": "IdP Certificate",
+      "certificatePlaceholder": "Paste X.509 certificate in PEM format"
+    },
+    "profile": {
+      "basicInfo": "Basic Information",
+      "basicInfoDesc": "Your profile picture and display name",
+      "nickname": "Display Name",
+      "nicknameDesc": "How your name appears to others",
+      "setNickname": "Set display name",
+      "email": "Email Address",
+      "emailDesc": "Your login email address",
+      "avatarHint": "Click to upload a new avatar",
+      "avatarRequirements": "JPG, PNG or GIF, max 2MB",
+      "invalidImageType": "Please select an image file",
+      "imageTooLarge": "Image must be less than 2MB",
+      "regional": "Regional Settings",
+      "regionalDesc": "Language and timezone preferences",
+      "language": "Language",
+      "languageDesc": "Interface display language",
+      "timezone": "Timezone",
+      "timezoneDesc": "Used for date and time display",
+      "security": "Account Security",
+      "securityDesc": "Manage your password",
+      "password": "Password",
+      "passwordDesc": "Change your account password",
+      "changePassword": "Change Password",
+      "currentPassword": "Current Password",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm New Password",
+      "updatePassword": "Update Password",
+      "passwordTooShort": "Password must be at least 8 characters",
+      "passwordMismatch": "Passwords do not match",
+      "passwordChanged": "Password changed successfully",
+      "passwordChangeFailed": "Failed to change password"
+    },
+    "branding": {
+      "images": "Brand Images",
+      "imagesDesc": "Logo and favicon for your platform",
+      "logo": "Logo",
+      "logoHint": "Recommended: 200x50px, PNG or SVG",
+      "favicon": "Favicon",
+      "faviconHint": "Recommended: 32x32px, PNG or ICO",
+      "upload": "Upload",
+      "invalidImageType": "Please select an image file",
+      "imageTooLarge": "Image file is too large",
+      "text": "Brand Text",
+      "textDesc": "Platform name and titles",
+      "brandName": "Brand Name",
+      "brandNameDesc": "Platform name shown across the UI",
+      "brandNamePlaceholder": "Enter brand name",
+      "loginTitle": "Login Page Title",
+      "loginTitleDesc": "Title displayed on the login page",
+      "loginTitlePlaceholder": "Welcome to Platform",
+      "dashboardTitle": "Dashboard Title",
+      "dashboardTitleDesc": "Title shown in the dashboard header",
+      "dashboardTitlePlaceholder": "Dashboard",
+      "colors": "Brand Colors",
+      "colorsDesc": "Primary and accent colors",
+      "presets": "Color Presets",
+      "primaryColor": "Primary Color",
+      "primaryColorDesc": "Main accent color for buttons and links",
+      "secondaryColor": "Secondary Color",
+      "secondaryColorDesc": "Hover states and highlights",
+      "resetColors": "Reset to Default",
+      "preview": "Preview",
+      "primaryButton": "Primary Button",
+      "secondaryButton": "Secondary Button",
+      "linkText": "Link Text"
+    },
+    "security": {
+      "passwordPolicy": "Password Policy",
+      "passwordPolicyDesc": "Password strength requirements",
+      "minLength": "Minimum Password Length",
+      "requireUppercase": "Require Uppercase Letter",
+      "requireLowercase": "Require Lowercase Letter",
+      "requireNumbers": "Require Numbers",
+      "requireSpecial": "Require Special Characters",
+      "passwordExpiry": "Password Expiry",
+      "passwordExpiryDesc": "0 = never expires",
+      "accountLockout": "Account Lockout",
+      "accountLockoutDesc": "Protection against brute force attacks",
+      "enableLockout": "Enable Account Lockout",
+      "enableLockoutDesc": "Lock accounts after failed login attempts",
+      "maxAttempts": "Max Failed Attempts",
+      "lockoutDuration": "Lockout Duration",
+      "ipAccess": "IP Access Control",
+      "ipAccessDesc": "Restrict access by IP address",
+      "enableIPRestriction": "Enable IP Restriction",
+      "enableIPRestrictionDesc": "Only allow access from specified IPs",
+      "ipAllowlist": "IP Allowlist",
+      "ipBlocklist": "IP Blocklist",
+      "ipPlaceholder": "192.168.1.0/24",
+      "invalidIP": "Invalid IP address or CIDR format",
+      "egressControl": "Egress Control",
+      "egressControlDesc": "Control outbound network access",
+      "egressWarning": "Egress control helps prevent data exfiltration. Only allow domains that are necessary for your integrations.",
+      "enableEgressControl": "Enable Egress Control",
+      "enableEgressControlDesc": "Restrict outbound connections to allowed domains",
+      "allowedDomains": "Allowed Domains",
+      "domainPlaceholder": "api.example.com",
+      "auditLogs": "Audit Logs",
+      "auditLogsDesc": "Track security-related events",
+      "exportLogs": "Export",
+      "noLogs": "No audit logs available"
+    },
+    "notifications": {
+      "smtp": "Email (SMTP)",
+      "smtpDesc": "Configure email notifications via SMTP",
+      "configureSMTP": "Configure SMTP",
+      "noSMTP": "No SMTP configuration",
+      "noSMTPHint": "Configure SMTP to enable email notifications",
+      "webhooks": "Webhooks",
+      "webhooksDesc": "Send notifications to external services",
+      "addWebhook": "Add Webhook",
+      "noWebhooks": "No webhooks configured",
+      "enterpriseIM": "Enterprise IM",
+      "enterpriseIMDesc": "Slack, DingTalk, Feishu, WeChat Work",
+      "dingtalk": "DingTalk",
+      "feishu": "Feishu / Lark",
+      "wechat": "WeChat Work",
+      "channelName": "Channel Name",
+      "channelNamePlaceholder": "My SMTP Server",
+      "smtpHost": "SMTP Host",
+      "smtpPort": "Port",
+      "smtpUsername": "Username",
+      "smtpPassword": "Password",
+      "fromEmail": "From Email",
+      "fromName": "From Name",
+      "webhookUrl": "Webhook URL",
+      "webhookSecret": "Secret (optional)",
+      "webhookSecretPlaceholder": "For HMAC signature verification",
+      "slackWebhook": "Webhook URL",
+      "slackChannel": "Channel (optional)",
+      "secret": "Secret",
+      "corpId": "Corp ID",
+      "agentId": "Agent ID",
+      "editChannel": "Edit Channel",
+      "addChannel": "Add Channel",
+      "testChannel": "Send Test",
+      "testSuccess": "Test successful!",
+      "testFailed": "Test failed",
+      "confirmDelete": "Are you sure you want to delete this channel?"
+    },
+    "features": {
+      "title": "Feature Flags",
+      "description": "Enable or disable platform features",
+      "searchPlaceholder": "Search features...",
+      "allCategories": "All Categories",
+      "noFlags": "No feature flags found",
+      "core": "Core Features",
+      "coreDesc": "Essential platform features",
+      "experimental": "Experimental",
+      "experimentalDesc": "Features under active development",
+      "beta": "Beta",
+      "betaDesc": "Features in beta testing",
+      "deprecated": "Deprecated",
+      "deprecatedDesc": "Features scheduled for removal"
+    },
+    "advanced": {
+      "warning": "Advanced Settings",
+      "warningDesc": "These settings are intended for advanced users. Modifying them incorrectly may affect platform stability.",
+      "systemInfo": "System Information",
+      "systemInfoDesc": "Platform version and environment details",
+      "version": "Platform Version",
+      "environment": "Environment",
+      "apiUrl": "API Endpoint",
+      "debug": "Debug Settings",
+      "debugDesc": "Development and debugging options",
+      "debugNote": "These options are only available in development mode and will not appear in production.",
+      "enableLogging": "Verbose Logging",
+      "enableLoggingDesc": "Log detailed API requests and responses",
+      "mockData": "Use Mock Data",
+      "mockDataDesc": "Use mock data instead of API calls",
+      "clearStorage": "Clear Local Storage",
+      "dangerZone": "Danger Zone",
+      "dangerZoneDesc": "Irreversible and destructive actions",
+      "resetSettings": "Reset All Settings",
+      "resetSettingsDesc": "Reset all settings to their default values",
+      "confirmReset": "Are you sure you want to reset all settings? This action cannot be undone.",
+      "reset": "Reset"
+    }
+  },
+  "monitoring": {
+    "title": "Monitoring",
+    "description": "Real-time monitoring of cluster resources, model services, and system health",
+    "cards": {
+      "nodes": {
+        "title": "Node Monitoring",
+        "desc": "Compute node resource usage"
+      },
+      "accelerators": {
+        "title": "Accelerator Monitoring",
+        "desc": "GPU/NPU device status"
+      },
+      "models": {
+        "title": "Model Services",
+        "desc": "Inference service metrics"
+      },
+      "gateway": {
+        "title": "Gateway Monitoring",
+        "desc": "API gateway traffic stats"
+      },
+      "cost": {
+        "title": "Cost Monitoring",
+        "desc": "Resource cost tracking"
+      },
+      "security": {
+        "title": "Security Monitoring",
+        "desc": "Security events and threats"
+      }
+    },
+    "nav": {
+      "overview": "Overview",
+      "nodes": "Nodes",
+      "accelerators": "Accelerators",
+      "models": "Model Services",
+      "gateway": "Gateway",
+      "cost": "Cost",
+      "security": "Security"
+    },
+    "timeRange": {
+      "label": "Time Range",
+      "15m": "Last 15 minutes",
+      "1h": "Last 1 hour",
+      "6h": "Last 6 hours",
+      "24h": "Last 24 hours",
+      "7d": "Last 7 days",
+      "30d": "Last 30 days",
+      "custom": "Custom"
+    },
+    "displayMode": {
+      "toggle": "Toggle display mode",
+      "simple": "Simple Mode",
+      "simpleDesc": "Hide technical details, suitable for operators",
+      "advanced": "Advanced Mode",
+      "advancedDesc": "Show PromQL queries and technical details"
+    },
+    "mode": {
+      "simple": "Simple",
+      "advanced": "Advanced"
+    },
+    "overview": {
+      "title": "Monitoring Overview",
+      "description": "Cluster resources and service health at a glance",
+      "loading": "Loading monitoring data...",
+      "error": "Failed to load monitoring data",
+      "noData": "No monitoring data available",
+      "sourcesTitle": "Data Sources",
+      "lastUpdated": "Last updated: {{time}}",
+      "autoRefresh": "Auto refresh",
+      "dataSources": "Data sources: {{healthy}}/{{total}}",
+      "refresh": "Refresh"
+    },
+    "nodes": {
+      "title": "Node Monitoring",
+      "description": "Compute node resource utilization",
+      "cpuUsage": "CPU Usage",
+      "memoryUsage": "Memory Usage",
+      "diskUsage": "Disk Usage",
+      "networkIO": "Network I/O",
+      "loadAverage": "Load Average",
+      "uptime": "Uptime",
+      "promql": "PromQL Query",
+      "chartPlaceholder": "Node metrics chart placeholder",
+      "selectNode": "Select a node to view details",
+      "nodeList": "Node List",
+      "noNodes": "No node data available"
+    },
+    "accelerators": {
+      "title": "Accelerator Monitoring",
+      "description": "GPU/NPU device status and performance metrics",
+      "devices": "Device List",
+      "noDevices": "No accelerator devices found",
+      "selectDevice": "Select a device to view details",
+      "temperature": "Temperature",
+      "power": "Power",
+      "memory": "Memory Usage",
+      "utilization": "Utilization",
+      "fanSpeed": "Fan Speed",
+      "clockSpeed": "Clock Speed",
+      "promql": "PromQL Query",
+      "chartPlaceholder": "Accelerator metrics chart placeholder"
+    },
+    "models": {
+      "title": "Model Service Monitoring",
+      "description": "vLLM model inference service performance metrics",
+      "instances": "Instances",
+      "p99Latency": "P99 Latency",
+      "throughput": "Throughput",
+      "successRate": "Success Rate",
+      "queueDepth": "Queue Depth",
+      "batchSize": "Batch Size",
+      "tokensPerSecond": "Tokens/sec",
+      "promql": "PromQL Query",
+      "chartPlaceholder": "Model metrics chart placeholder"
+    },
+    "gateway": {
+      "title": "Gateway Monitoring",
+      "description": "API gateway traffic and performance metrics",
+      "requestRate": "Request Rate",
+      "errorRate": "Error Rate",
+      "p99Latency": "P99 Latency",
+      "activeConnections": "Active Connections",
+      "bandwidthIn": "Inbound Bandwidth",
+      "bandwidthOut": "Outbound Bandwidth",
+      "upstreamLatency": "Upstream Latency",
+      "chartPlaceholder": "Gateway metrics chart placeholder"
+    },
+    "cost": {
+      "title": "Cost Monitoring",
+      "description": "Resource usage costs and budget tracking",
+      "currentSpending": "Current Spending",
+      "projectedCost": "Projected Cost",
+      "budgetRemaining": "Budget Remaining",
+      "topConsumer": "Top Consumer",
+      "costByService": "Cost by Service",
+      "costByNode": "Cost by Node",
+      "tokenUsage": "Token Usage",
+      "chartPlaceholder": "Cost analysis chart placeholder"
+    },
+    "security": {
+      "title": "Security Monitoring",
+      "description": "Security events and threat detection",
+      "sshFailures": "SSH Failures",
+      "anomalies": "Anomaly Detection",
+      "blockedIPs": "Blocked IPs",
+      "integrityChecks": "Integrity Checks",
+      "recentEvents": "Recent Events",
+      "threatLevel": "Threat Level",
+      "chartPlaceholder": "Security events chart placeholder"
+    },
+    "status": {
+      "ok": "OK",
+      "warning": "Warning",
+      "critical": "Critical",
+      "unknown": "Unknown"
+    },
+    "card": {
+      "viewDetails": "View Details",
+      "noData": "No data available"
+    },
+    "alerts": {
+      "title": "Active Alerts",
+      "noAlerts": "No active alerts",
+      "severity": {
+        "critical": "Critical",
+        "warning": "Warning",
+        "info": "Info"
+      }
+    }
+  },
+  "authz": {
+    "title": "Permission Management",
+    "description": "Manage roles, permissions, and access control",
+    "nav": {
+      "overview": "Overview",
+      "modules": "Modules",
+      "roles": "Roles",
+      "users": "Users",
+      "audit": "Audit Logs"
+    },
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "permissions": "permissions",
+    "searchPermissions": "Search permissions...",
+    "noPermissionsFound": "No permissions found",
+    "modules": {
+      "title": "Module Settings",
+      "description": "Enable or disable platform modules for your tenant",
+      "syncManifest": "Sync Manifest",
+      "default": "Default"
+    },
+    "roles": {
+      "title": "Roles",
+      "create": "Create",
+      "createTitle": "Create Role",
+      "system": "System",
+      "selectRole": "Select a role to view details",
+      "pendingChanges": "pending changes",
+      "name": "Name",
+      "displayTitle": "Display Title",
+      "description": "Description"
+    },
+    "users": {
+      "title": "User Role Assignment",
+      "description": "Manage role assignments for users",
+      "search": "Search users by email or name...",
+      "user": "User",
+      "roles": "Roles",
+      "created": "Created",
+      "actions": "Actions",
+      "editRoles": "Edit Roles",
+      "editRolesTitle": "Edit Roles",
+      "noRoles": "No roles assigned",
+      "noUsers": "No users found",
+      "showing": "Showing {{from}}-{{to}} of {{total}}"
+    },
+    "audit": {
+      "title": "Audit Logs",
+      "description": "View authorization change history",
+      "allActions": "All Actions",
+      "allTypes": "All Resource Types",
+      "noLogs": "No audit logs found",
+      "showing": "Showing {{from}}-{{to}} of {{total}}",
+      "action": {
+        "role.create": "Role Created",
+        "role.update": "Role Updated",
+        "role.delete": "Role Deleted",
+        "role.permissions": "Permissions Updated",
+        "user.roles": "User Roles Assigned",
+        "module.enable": "Module Enabled",
+        "module.disable": "Module Disabled"
+      },
+      "type": {
+        "role": "Role",
+        "user": "User",
+        "module": "Module",
+        "tenant_module": "Tenant Module",
+        "authz": "Authorization"
+      }
+    },
+    "actions": {
+      "view": "View",
+      "create": "Create",
+      "update": "Update",
+      "delete": "Delete",
+      "execute": "Execute",
+      "manage": "Manage",
+      "sync": "Sync",
+      "maintenance": "Maintenance",
+      "cancel": "Cancel",
+      "upload": "Upload"
+    }
+  }
+}

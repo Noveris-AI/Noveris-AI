@@ -1,0 +1,98 @@
+---
+# install_framework_vllm.yml
+#
+# Install vLLM in a dedicated virtual environment.
+#
+# Reference: https://docs.vllm.ai/en/latest/getting_started/quickstart/
+
+- name: Install vLLM framework
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    venv_base: "{{ venv_base | default('/opt/model-runtimes') }}"
+    deploy_user: "{{ deploy_user | default('modelserve') }}"
+    deploy_group: "{{ deploy_group | default('modelserve') }}"
+    install_profile: "{{ install_profile | default('nvidia_cuda') }}"
+    python_version: "{{ python_version | default('python3.11') }}"
+
+  tasks:
+    - name: Ensure venv base directory exists
+      ansible.builtin.file:
+        path: "{{ venv_base }}"
+        state: directory
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: "0755"
+
+    - name: Create vLLM virtual environment
+      ansible.builtin.command:
+        cmd: "{{ python_version }} -m venv {{ venv_base }}/vllm-{{ deployment_id }}"
+        creates: "{{ venv_base }}/vllm-{{ deployment_id }}/bin/activate"
+      become_user: "{{ deploy_user }}"
+
+    - name: Upgrade pip in venv
+      ansible.builtin.pip:
+        name: pip
+        state: latest
+        virtualenv: "{{ venv_base }}/vllm-{{ deployment_id }}"
+      become_user: "{{ deploy_user }}"
+
+    - name: Install vLLM for NVIDIA CUDA
+      ansible.builtin.pip:
+        name:
+          - vllm>=0.6.0
+          - huggingface_hub
+        state: present
+        virtualenv: "{{ venv_base }}/vllm-{{ deployment_id }}"
+      become_user: "{{ deploy_user }}"
+      when: install_profile == "nvidia_cuda"
+
+    - name: Install vLLM for CPU
+      ansible.builtin.pip:
+        name:
+          - vllm
+          - huggingface_hub
+        state: present
+        virtualenv: "{{ venv_base }}/vllm-{{ deployment_id }}"
+        extra_args: "--extra-index-url https://download.pytorch.org/whl/cpu"
+      become_user: "{{ deploy_user }}"
+      when: install_profile == "cpu_only"
+
+    - name: Install vLLM for AMD ROCm
+      ansible.builtin.pip:
+        name:
+          - vllm
+          - huggingface_hub
+        state: present
+        virtualenv: "{{ venv_base }}/vllm-{{ deployment_id }}"
+      become_user: "{{ deploy_user }}"
+      environment:
+        VLLM_TARGET_DEVICE: "rocm"
+      when: install_profile == "amd_rocm"
+
+    - name: Install vLLM Ascend plugin
+      ansible.builtin.pip:
+        name:
+          - vllm>=0.13.0
+          - vllm-ascend>=0.13.0rc1
+          - huggingface_hub
+        state: present
+        virtualenv: "{{ venv_base }}/vllm-{{ deployment_id }}"
+      become_user: "{{ deploy_user }}"
+      when: install_profile == "ascend_cann"
+
+    - name: Verify vLLM installation
+      ansible.builtin.command:
+        cmd: "{{ venv_base }}/vllm-{{ deployment_id }}/bin/python -c 'import vllm; print(vllm.__version__)'"
+      register: vllm_version
+      changed_when: false
+
+    - name: Display vLLM version
+      ansible.builtin.debug:
+        msg: "Installed vLLM version: {{ vllm_version.stdout }}"
+
+    - name: Set venv path fact
+      ansible.builtin.set_fact:
+        framework_venv_path: "{{ venv_base }}/vllm-{{ deployment_id }}"

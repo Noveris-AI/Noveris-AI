@@ -1,0 +1,8 @@
+# Example targets file for SGLang instances
+# Replace with actual SGLang service IPs/hostnames
+
+- targets:
+    # - "sglang-01:30000"
+  labels:
+    framework: "sglang"
+    env: "production"

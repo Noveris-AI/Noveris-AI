@@ -1,0 +1,70 @@
+---
+# prepare_model_cache.yml
+#
+# Prepare cache directories and permissions for model downloads.
+# Must be run before model download.
+
+- name: Prepare model cache directories
+  hosts: all
+  become: true
+  gather_facts: false
+
+  vars:
+    model_cache_root: "{{ model_cache_root | default('/data/models') }}"
+    log_root: "{{ log_root | default('/data/logs/models') }}"
+    work_dir: "{{ work_dir | default('/var/lib/model-deployments') }}"
+    deploy_user: "{{ deploy_user | default('modelserve') }}"
+    deploy_group: "{{ deploy_group | default('modelserve') }}"
+
+  tasks:
+    - name: Ensure deploy user exists
+      ansible.builtin.user:
+        name: "{{ deploy_user }}"
+        system: true
+        shell: /bin/bash
+        create_home: true
+        state: present
+
+    - name: Create model cache root directory
+      ansible.builtin.file:
+        path: "{{ model_cache_root }}"
+        state: directory
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: "0755"
+
+    - name: Create huggingface cache directory
+      ansible.builtin.file:
+        path: "{{ model_cache_root }}/huggingface"
+        state: directory
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: "0755"
+
+    - name: Create log root directory
+      ansible.builtin.file:
+        path: "{{ log_root }}"
+        state: directory
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: "0755"
+
+    - name: Create deployment work directory
+      ansible.builtin.file:
+        path: "{{ work_dir }}"
+        state: directory
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: "0755"
+
+    - name: Create deployment-specific directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: "0755"
+      loop:
+        - "{{ work_dir }}/{{ deployment_id }}"
+        - "{{ log_root }}/{{ deployment_id }}"
+      when: deployment_id is defined

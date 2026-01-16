@@ -1,0 +1,174 @@
+---
+# NVIDIA DCGM Exporter Deployment Playbook
+# Deploys DCGM Exporter for Prometheus monitoring
+#
+# Variables:
+#   dcgm_exporter_port: Metrics port (default: 9400)
+#   dcgm_exporter_version: Container image version
+#   deploy_mode: systemd or docker
+
+- name: Deploy DCGM Exporter
+  hosts: all
+  gather_facts: true
+  become: true
+  vars:
+    dcgm_exporter_port: 9400
+    dcgm_exporter_version: "3.3.0-3.2.0-ubuntu22.04"
+    deploy_mode: systemd
+    dcgm_exporter_image: "nvcr.io/nvidia/k8s/dcgm-exporter"
+
+  tasks:
+    # ==========================================================================
+    # Pre-flight Checks
+    # ==========================================================================
+    - name: Check for NVIDIA GPU
+      ansible.builtin.command: nvidia-smi
+      register: nvidia_check
+      failed_when: false
+      changed_when: false
+
+    - name: Skip if no NVIDIA GPU
+      ansible.builtin.meta: end_host
+      when: nvidia_check.rc != 0
+
+    # ==========================================================================
+    # Systemd Deployment
+    # ==========================================================================
+    - name: Install DCGM package (Ubuntu)
+      ansible.builtin.apt:
+        name:
+          - datacenter-gpu-manager
+        state: present
+        update_cache: true
+      when:
+        - deploy_mode == "systemd"
+        - ansible_distribution == "Ubuntu"
+
+    - name: Install DCGM package (RHEL)
+      ansible.builtin.yum:
+        name:
+          - datacenter-gpu-manager
+        state: present
+      when:
+        - deploy_mode == "systemd"
+        - ansible_os_family == "RedHat"
+
+    - name: Install dcgm-exporter binary
+      ansible.builtin.get_url:
+        url: "https://github.com/NVIDIA/dcgm-exporter/releases/download/v{{ dcgm_exporter_version.split('-')[0] }}/dcgm-exporter-{{ dcgm_exporter_version.split('-')[0] }}-linux-amd64.tar.gz"
+        dest: /tmp/dcgm-exporter.tar.gz
+        mode: '0644'
+      when: deploy_mode == "systemd"
+      failed_when: false
+
+    - name: Create dcgm-exporter systemd service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/dcgm-exporter.service
+        content: |
+          [Unit]
+          Description=NVIDIA DCGM Exporter
+          After=network.target nvidia-dcgm.service
+          Wants=nvidia-dcgm.service
+
+          [Service]
+          Type=simple
+          ExecStart=/usr/bin/dcgm-exporter --address :{{ dcgm_exporter_port }}
+          Restart=always
+          RestartSec=10
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+      when: deploy_mode == "systemd"
+      notify: Reload systemd
+
+    - name: Enable DCGM service
+      ansible.builtin.systemd:
+        name: nvidia-dcgm
+        enabled: true
+        state: started
+      when: deploy_mode == "systemd"
+      failed_when: false
+
+    - name: Enable DCGM Exporter service
+      ansible.builtin.systemd:
+        name: dcgm-exporter
+        enabled: true
+        state: started
+      when: deploy_mode == "systemd"
+      failed_when: false
+
+    # ==========================================================================
+    # Docker Deployment
+    # ==========================================================================
+    - name: Check for Docker
+      ansible.builtin.command: which docker
+      register: docker_check
+      failed_when: false
+      changed_when: false
+      when: deploy_mode == "docker"
+
+    - name: Run DCGM Exporter container
+      ansible.builtin.command: >
+        docker run -d --name dcgm-exporter
+        --gpus all
+        --cap-add SYS_ADMIN
+        -p {{ dcgm_exporter_port }}:9400
+        --restart unless-stopped
+        {{ dcgm_exporter_image }}:{{ dcgm_exporter_version }}
+      when:
+        - deploy_mode == "docker"
+        - docker_check.rc == 0
+      register: docker_run
+      failed_when: false
+      changed_when: docker_run.rc == 0
+
+    # ==========================================================================
+    # Firewall Configuration
+    # ==========================================================================
+    - name: Open firewall port (firewalld)
+      ansible.posix.firewalld:
+        port: "{{ dcgm_exporter_port }}/tcp"
+        permanent: true
+        state: enabled
+        immediate: true
+      failed_when: false
+      when: ansible_os_family == "RedHat"
+
+    - name: Open firewall port (ufw)
+      community.general.ufw:
+        rule: allow
+        port: "{{ dcgm_exporter_port }}"
+        proto: tcp
+      failed_when: false
+      when: ansible_distribution == "Ubuntu"
+
+    # ==========================================================================
+    # Verification
+    # ==========================================================================
+    - name: Wait for DCGM Exporter to start
+      ansible.builtin.wait_for:
+        port: "{{ dcgm_exporter_port }}"
+        timeout: 30
+      failed_when: false
+
+    - name: Verify DCGM Exporter metrics
+      ansible.builtin.uri:
+        url: "http://localhost:{{ dcgm_exporter_port }}/metrics"
+        return_content: true
+      register: metrics_check
+      failed_when: false
+
+    - name: Display deployment summary
+      ansible.builtin.debug:
+        msg:
+          - "DCGM Exporter Deployment Complete"
+          - "Port: {{ dcgm_exporter_port }}"
+          - "Mode: {{ deploy_mode }}"
+          - "Metrics endpoint: http://{{ ansible_default_ipv4.address }}:{{ dcgm_exporter_port }}/metrics"
+          - "Status: {{ 'Running' if metrics_check.status | default(0) == 200 else 'Check required' }}"
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true

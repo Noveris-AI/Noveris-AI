@@ -1,0 +1,66 @@
+---
+# uninstall_service.yml
+#
+# Remove the model serving service and clean up.
+
+- name: Uninstall model serving service
+  hosts: all
+  become: true
+  gather_facts: false
+
+  vars:
+    service_name: "noveris-model-{{ deployment_id[:12] }}"
+    work_dir: "{{ work_dir | default('/var/lib/model-deployments') }}"
+    log_root: "{{ log_root | default('/data/logs/models') }}"
+    venv_base: "{{ venv_base | default('/opt/model-runtimes') }}"
+    systemd_service_dir: "{{ systemd_service_dir | default('/etc/systemd/system') }}"
+    cleanup_venv: "{{ cleanup_venv | default(true) }}"
+    cleanup_logs: "{{ cleanup_logs | default(false) }}"
+
+  tasks:
+    - name: Stop the service if running
+      ansible.builtin.systemd:
+        name: "{{ service_name }}"
+        state: stopped
+      failed_when: false
+
+    - name: Disable the service
+      ansible.builtin.systemd:
+        name: "{{ service_name }}"
+        enabled: false
+      failed_when: false
+
+    - name: Remove systemd unit file
+      ansible.builtin.file:
+        path: "{{ systemd_service_dir }}/{{ service_name }}.service"
+        state: absent
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Remove deployment work directory
+      ansible.builtin.file:
+        path: "{{ work_dir }}/{{ deployment_id }}"
+        state: absent
+
+    - name: Remove deployment log directory
+      ansible.builtin.file:
+        path: "{{ log_root }}/{{ deployment_id }}"
+        state: absent
+      when: cleanup_logs | bool
+
+    - name: Remove virtual environment
+      ansible.builtin.file:
+        path: "{{ venv_base }}/{{ framework }}-{{ deployment_id }}"
+        state: absent
+      when: cleanup_venv | bool
+
+    - name: Display cleanup summary
+      ansible.builtin.debug:
+        msg: |
+          Deployment {{ deployment_id }} uninstalled:
+          - Service {{ service_name }} removed
+          - Work directory removed: {{ work_dir }}/{{ deployment_id }}
+          - Logs removed: {{ cleanup_logs }}
+          - Virtual environment removed: {{ cleanup_venv }}

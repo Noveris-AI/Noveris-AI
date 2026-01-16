@@ -1,0 +1,58 @@
+---
+# Model Deployment Playbook Collection
+#
+# This directory contains playbooks for deploying and managing model
+# serving instances using vLLM, SGLang, and Xinference frameworks.
+#
+# Reference documentation:
+# - vLLM: https://docs.vllm.ai/en/latest/getting_started/quickstart/
+# - SGLang: https://docs.sglang.io/
+# - Xinference: https://inference.readthedocs.io/en/latest/getting_started/using_xinference.html
+
+playbooks:
+  node/:
+    probe.yml: Hardware and runtime detection
+    bootstrap.yml: Basic dependencies and user setup
+    install_driver_nvidia.yml: NVIDIA driver installation (optional)
+    install_driver_amd.yml: AMD ROCm installation (optional)
+    install_runtime_ascend.yml: Ascend CANN installation (optional)
+    install_observability.yml: Node/GPU metrics exporters (optional)
+
+  deploy/:
+    prepare_model_cache.yml: Create cache directories and permissions
+    fetch_model_hf.yml: Download model from Hugging Face
+    install_framework_vllm.yml: Install vLLM in virtual environment
+    install_framework_sglang.yml: Install SGLang in virtual environment
+    install_framework_xinference.yml: Install Xinference in virtual environment
+    render_service.yml: Generate wrapper script and systemd unit
+    start_service.yml: Start the model serving service
+    stop_service.yml: Stop the model serving service
+    restart_service.yml: Restart the model serving service
+    uninstall_service.yml: Remove service and clean up
+
+templates:
+  systemd.service.j2: Systemd unit file template
+  run_wrapper.py.j2: Python wrapper script template
+  config.json.j2: Deployment configuration template
+
+variables:
+  Required variables (must be provided via extra_vars):
+    - deployment_id: UUID of the deployment
+    - deployment_name: Name of the deployment
+    - framework: vllm|sglang|xinference
+    - model_repo_id: Hugging Face model ID
+    - model_revision: Model revision/tag
+    - host: Bind address
+    - port: Service port
+    - gpu_devices: List of GPU indices
+    - tensor_parallel_size: TP degree
+    - env_table: Environment variables
+    - args_table: CLI arguments
+
+  Optional variables:
+    - hf_token: Hugging Face token (for gated models)
+    - hf_endpoint: Custom HF endpoint (for mirrors)
+    - model_cache_root: Cache directory
+    - log_root: Log directory
+    - venv_base: Virtual environment base path
+    - deploy_user: Service user

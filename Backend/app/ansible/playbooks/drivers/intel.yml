@@ -1,0 +1,90 @@
+---
+# Intel GPU Driver Installation Playbook
+# Installs Intel GPU drivers and XPU-SMI tools
+#
+# Variables:
+#   intel_gpu_driver_version: Driver version
+#   install_oneapi: Install Intel oneAPI toolkit
+
+- name: Install Intel GPU Stack
+  hosts: all
+  gather_facts: true
+  become: true
+  serial: "{{ serial | default(omit) }}"
+  vars:
+    install_oneapi: false
+    install_level_zero: true
+    reboot_if_required: false
+
+  tasks:
+    # ==========================================================================
+    # Pre-flight Checks
+    # ==========================================================================
+    - name: Check for Intel GPU
+      ansible.builtin.command: lspci -nn | grep -i "Intel.*VGA\|Intel.*Display\|Intel.*3D"
+      register: intel_pci_check
+      failed_when: false
+      changed_when: false
+
+    - name: Check if xpu-smi installed
+      ansible.builtin.command: which xpu-smi
+      register: xpu_smi_check
+      failed_when: false
+      changed_when: false
+
+    # ==========================================================================
+    # Repository Setup (Ubuntu)
+    # ==========================================================================
+    - name: Add Intel GPU repository key (Ubuntu)
+      ansible.builtin.apt_key:
+        url: https://repositories.intel.com/gpu/intel-graphics.key
+        state: present
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Add Intel GPU repository (Ubuntu)
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64] https://repositories.intel.com/gpu/ubuntu {{ ansible_distribution_release }}/lts/2350 unified"
+        state: present
+        filename: intel-gpu
+      when: ansible_distribution == "Ubuntu"
+
+    # ==========================================================================
+    # Installation
+    # ==========================================================================
+    - name: Install Intel GPU drivers (Ubuntu)
+      ansible.builtin.apt:
+        name:
+          - intel-opencl-icd
+          - intel-level-zero-gpu
+          - level-zero
+          - intel-media-va-driver-non-free
+          - xpu-smi
+        state: present
+        update_cache: true
+      when: ansible_distribution == "Ubuntu"
+      register: intel_install
+
+    - name: Install Intel oneAPI
+      ansible.builtin.apt:
+        name:
+          - intel-oneapi-base-toolkit
+        state: present
+      when:
+        - ansible_distribution == "Ubuntu"
+        - install_oneapi
+
+    # ==========================================================================
+    # Verification
+    # ==========================================================================
+    - name: Verify Intel GPU
+      ansible.builtin.command: xpu-smi discovery
+      register: intel_verify
+      failed_when: false
+      changed_when: false
+
+    - name: Display installation summary
+      ansible.builtin.debug:
+        msg:
+          - "Intel GPU Stack Installation Complete"
+          - "oneAPI installed: {{ install_oneapi }}"
+          - "XPU-SMI status: {{ 'Available' if intel_verify.rc == 0 else 'Not available' }}"

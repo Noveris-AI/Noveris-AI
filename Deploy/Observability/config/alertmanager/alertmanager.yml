@@ -1,0 +1,98 @@
+# Alertmanager Configuration
+# https://prometheus.io/docs/alerting/latest/configuration/
+
+global:
+  # SMTP settings for email notifications
+  smtp_smarthost: 'smtp.example.com:587'
+  smtp_from: 'alertmanager@noveris.ai'
+  smtp_auth_username: 'alertmanager@noveris.ai'
+  smtp_auth_password: ''
+  smtp_require_tls: true
+
+  # Slack settings (optional)
+  # slack_api_url: 'https://hooks.slack.com/services/xxx/yyy/zzz'
+
+# Templates for notification messages
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Routing tree
+route:
+  # Default receiver
+  receiver: 'default-receiver'
+
+  # Group alerts by these labels
+  group_by: ['alertname', 'severity', 'instance']
+
+  # How long to wait before sending a notification for a group
+  group_wait: 30s
+
+  # How long to wait before sending notification about new alerts in a group
+  group_interval: 5m
+
+  # How long to wait before sending a notification again
+  repeat_interval: 4h
+
+  # Child routes for specific alerts
+  routes:
+    # Critical alerts go to high-priority channel
+    - match:
+        severity: critical
+      receiver: 'critical-receiver'
+      group_wait: 10s
+      repeat_interval: 1h
+
+    # GPU/NPU alerts
+    - match:
+        category: hardware
+      receiver: 'hardware-receiver'
+      group_by: ['alertname', 'instance', 'gpu']
+
+    # Model service alerts
+    - match_re:
+        alertname: ^(VLLM|SGLang|ModelService).*
+      receiver: 'model-service-receiver'
+
+# Receivers define notification destinations
+receivers:
+  - name: 'default-receiver'
+    webhook_configs:
+      - url: 'http://noveris-backend:8000/api/v1/monitoring/alerts/webhook'
+        send_resolved: true
+
+  - name: 'critical-receiver'
+    webhook_configs:
+      - url: 'http://noveris-backend:8000/api/v1/monitoring/alerts/webhook'
+        send_resolved: true
+    # email_configs:
+    #   - to: 'ops-critical@noveris.ai'
+    #     send_resolved: true
+    # slack_configs:
+    #   - channel: '#alerts-critical'
+    #     send_resolved: true
+
+  - name: 'hardware-receiver'
+    webhook_configs:
+      - url: 'http://noveris-backend:8000/api/v1/monitoring/alerts/webhook'
+        send_resolved: true
+
+  - name: 'model-service-receiver'
+    webhook_configs:
+      - url: 'http://noveris-backend:8000/api/v1/monitoring/alerts/webhook'
+        send_resolved: true
+
+# Inhibition rules to suppress certain alerts
+inhibit_rules:
+  # If node is down, suppress other alerts from that node
+  - source_match:
+      alertname: NodeDown
+    target_match_re:
+      alertname: .+
+    equal: ['instance']
+
+  # If GPU is down, suppress GPU temperature/memory alerts
+  - source_match:
+      alertname: GPUDown
+    target_match_re:
+      alertname: GPU.*
+    equal: ['instance', 'gpu']

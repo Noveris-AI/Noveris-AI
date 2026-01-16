@@ -1,0 +1,98 @@
+# Environment variables (keep .env.example)
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+.eggs/
+*.egg-info/
+*.egg
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build outputs
+Frontend/dist/
+Frontend/build/
+*.local
+
+# IDE and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Logs
+logs/
+*.log
+
+# Database
+*.db
+*.sqlite3
+
+# Docker volumes data (local)
+data/
+volumes/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Secrets and credentials
+*.pem
+*.key
+secrets/
+credentials/
+
+# Coverage reports
+coverage/
+*.lcov
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Claude Code
+.claude/

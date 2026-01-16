@@ -1,0 +1,204 @@
+---
+# Package Update Playbook
+# Update system packages with optional reboot handling
+
+- name: Update System Packages
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    update_all: "{{ update_all_packages | default(true) }}"
+    security_only: "{{ security_updates_only | default(false) }}"
+    packages_to_update: "{{ specific_packages | default([]) }}"
+    packages_to_install: "{{ install_packages | default([]) }}"
+    packages_to_remove: "{{ remove_packages | default([]) }}"
+    auto_reboot: "{{ reboot_if_required | default(false) }}"
+    reboot_timeout: "{{ reboot_wait_timeout | default(600) }}"
+    clean_cache: "{{ clean_package_cache | default(true) }}"
+
+  tasks:
+    # Pre-update snapshot (for rollback info)
+    - name: Get current package count (Debian/Ubuntu)
+      ansible.builtin.shell: dpkg -l | grep "^ii" | wc -l
+      register: pre_update_count_deb
+      changed_when: false
+      when: ansible_os_family == "Debian"
+
+    - name: Get current package count (RHEL/CentOS)
+      ansible.builtin.shell: rpm -qa | wc -l
+      register: pre_update_count_rhel
+      changed_when: false
+      when: ansible_os_family == "RedHat"
+
+    # Install specific packages
+    - name: Install requested packages (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name: "{{ packages_to_install }}"
+        state: present
+        update_cache: yes
+      when:
+        - ansible_os_family == "Debian"
+        - packages_to_install | length > 0
+
+    - name: Install requested packages (RHEL/CentOS)
+      ansible.builtin.yum:
+        name: "{{ packages_to_install }}"
+        state: present
+      when:
+        - ansible_os_family == "RedHat"
+        - packages_to_install | length > 0
+
+    # Update packages
+    - name: Update all packages (Debian/Ubuntu)
+      ansible.builtin.apt:
+        upgrade: dist
+        update_cache: yes
+        cache_valid_time: 3600
+      when:
+        - ansible_os_family == "Debian"
+        - update_all | bool
+        - not (security_only | bool)
+      register: apt_update_result
+
+    - name: Update security packages only (Debian/Ubuntu)
+      ansible.builtin.apt:
+        upgrade: yes
+        update_cache: yes
+        default_release: "{{ ansible_distribution_release }}-security"
+      when:
+        - ansible_os_family == "Debian"
+        - security_only | bool
+      register: apt_security_result
+
+    - name: Update specific packages (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name: "{{ packages_to_update }}"
+        state: latest
+        update_cache: yes
+      when:
+        - ansible_os_family == "Debian"
+        - packages_to_update | length > 0
+        - not (update_all | bool)
+
+    - name: Update all packages (RHEL/CentOS)
+      ansible.builtin.yum:
+        name: '*'
+        state: latest
+        update_cache: yes
+      when:
+        - ansible_os_family == "RedHat"
+        - update_all | bool
+        - not (security_only | bool)
+      register: yum_update_result
+
+    - name: Update security packages only (RHEL/CentOS)
+      ansible.builtin.yum:
+        name: '*'
+        state: latest
+        security: yes
+      when:
+        - ansible_os_family == "RedHat"
+        - security_only | bool
+      register: yum_security_result
+
+    - name: Update specific packages (RHEL/CentOS)
+      ansible.builtin.yum:
+        name: "{{ packages_to_update }}"
+        state: latest
+      when:
+        - ansible_os_family == "RedHat"
+        - packages_to_update | length > 0
+        - not (update_all | bool)
+
+    # Remove packages
+    - name: Remove packages (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name: "{{ packages_to_remove }}"
+        state: absent
+        purge: yes
+      when:
+        - ansible_os_family == "Debian"
+        - packages_to_remove | length > 0
+
+    - name: Remove packages (RHEL/CentOS)
+      ansible.builtin.yum:
+        name: "{{ packages_to_remove }}"
+        state: absent
+      when:
+        - ansible_os_family == "RedHat"
+        - packages_to_remove | length > 0
+
+    # Clean package cache
+    - name: Clean package cache (Debian/Ubuntu)
+      ansible.builtin.apt:
+        autoclean: yes
+        autoremove: yes
+      when:
+        - ansible_os_family == "Debian"
+        - clean_cache | bool
+
+    - name: Clean package cache (RHEL/CentOS)
+      ansible.builtin.yum:
+        autoremove: yes
+      when:
+        - ansible_os_family == "RedHat"
+        - clean_cache | bool
+
+    # Check if reboot is required
+    - name: Check if reboot is required (Debian/Ubuntu)
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required_file
+      when: ansible_os_family == "Debian"
+
+    - name: Check if reboot is required (RHEL/CentOS)
+      ansible.builtin.command: needs-restarting -r
+      register: needs_restarting
+      changed_when: false
+      failed_when: false
+      when: ansible_os_family == "RedHat"
+
+    - name: Set reboot required fact
+      ansible.builtin.set_fact:
+        reboot_needed: >-
+          {{
+            (ansible_os_family == "Debian" and reboot_required_file.stat.exists | default(false)) or
+            (ansible_os_family == "RedHat" and needs_restarting.rc | default(0) == 1)
+          }}
+
+    # Reboot if required and allowed
+    - name: Reboot the system
+      ansible.builtin.reboot:
+        msg: "Rebooting for package updates"
+        reboot_timeout: "{{ reboot_timeout }}"
+      when:
+        - reboot_needed | bool
+        - auto_reboot | bool
+
+    # Post-update snapshot
+    - name: Get updated package count (Debian/Ubuntu)
+      ansible.builtin.shell: dpkg -l | grep "^ii" | wc -l
+      register: post_update_count_deb
+      changed_when: false
+      when: ansible_os_family == "Debian"
+
+    - name: Get updated package count (RHEL/CentOS)
+      ansible.builtin.shell: rpm -qa | wc -l
+      register: post_update_count_rhel
+      changed_when: false
+      when: ansible_os_family == "RedHat"
+
+    # Report results
+    - name: Report package update status
+      ansible.builtin.set_fact:
+        noveris_package_update:
+          os_family: "{{ ansible_os_family }}"
+          packages_before: "{{ pre_update_count_deb.stdout | default(pre_update_count_rhel.stdout) | default('unknown') }}"
+          packages_after: "{{ post_update_count_deb.stdout | default(post_update_count_rhel.stdout) | default('unknown') }}"
+          packages_installed: "{{ packages_to_install }}"
+          packages_removed: "{{ packages_to_remove }}"
+          update_type: "{{ 'security' if security_only else 'full' if update_all else 'specific' }}"
+          reboot_required: "{{ reboot_needed | bool }}"
+          reboot_performed: "{{ reboot_needed | bool and auto_reboot | bool }}"
+          timestamp: "{{ ansible_date_time.iso8601 }}"

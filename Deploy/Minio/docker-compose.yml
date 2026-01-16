@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: novaris-minio
+    restart: unless-stopped
+
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_REGION: ${MINIO_REGION:-us-east-1}
+      MINIO_BROWSER: ${MINIO_BROWSER:-on}
+
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+
+    volumes:
+      - minio_data:/data
+
+    networks:
+      - novaris-network
+
+    command: server /data --console-address ":9001"
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: ${MINIO_MEMORY_LIMIT:-1G}
+          cpus: '${MINIO_CPU_LIMIT:-1.0}'
+        reservations:
+          memory: ${MINIO_MEMORY_RESERVATION:-512M}
+          cpus: '${MINIO_CPU_RESERVATION:-0.5}'
+
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  minio_data:
+    driver: local
+
+networks:
+  novaris-network:
+    external: true
+    name: novaris-network

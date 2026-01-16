@@ -1,0 +1,104 @@
+---
+# NVIDIA GPU Driver Installation Playbook
+# Installs NVIDIA drivers and CUDA toolkit on Linux nodes
+
+- name: Install NVIDIA GPU Drivers
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    nvidia_driver_version: "{{ driver_version | default('latest') }}"
+    install_cuda: "{{ install_cuda_toolkit | default(true) }}"
+    cuda_version: "{{ cuda_toolkit_version | default('12.2') }}"
+    reboot_if_needed: "{{ auto_reboot | default(false) }}"
+
+  tasks:
+    - name: Check if NVIDIA GPU is present
+      ansible.builtin.shell: |
+        lspci | grep -i nvidia
+      register: nvidia_check
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if no NVIDIA GPU found
+      ansible.builtin.fail:
+        msg: "No NVIDIA GPU detected on this system"
+      when: nvidia_check.rc != 0
+
+    - name: Install prerequisites (RHEL/CentOS)
+      ansible.builtin.yum:
+        name:
+          - kernel-devel
+          - kernel-headers
+          - gcc
+          - make
+          - dkms
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Install prerequisites (Ubuntu/Debian)
+      ansible.builtin.apt:
+        name:
+          - build-essential
+          - dkms
+          - linux-headers-{{ ansible_kernel }}
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Add NVIDIA repository (RHEL/CentOS)
+      ansible.builtin.yum_repository:
+        name: cuda
+        description: NVIDIA CUDA Repository
+        baseurl: https://developer.download.nvidia.com/compute/cuda/repos/rhel{{ ansible_distribution_major_version }}/x86_64/
+        gpgcheck: yes
+        gpgkey: https://developer.download.nvidia.com/compute/cuda/repos/rhel{{ ansible_distribution_major_version }}/x86_64/D42D0685.pub
+      when: ansible_os_family == "RedHat"
+
+    - name: Add NVIDIA repository key (Ubuntu/Debian)
+      ansible.builtin.apt_key:
+        url: https://developer.download.nvidia.com/compute/cuda/repos/ubuntu{{ ansible_distribution_version | replace('.', '') }}/x86_64/3bf863cc.pub
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Add NVIDIA repository (Ubuntu/Debian)
+      ansible.builtin.apt_repository:
+        repo: "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu{{ ansible_distribution_version | replace('.', '') }}/x86_64/ /"
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Install NVIDIA driver (latest)
+      ansible.builtin.package:
+        name: "{{ 'nvidia-driver-latest' if ansible_os_family == 'Debian' else 'nvidia-driver-latest-dkms' }}"
+        state: present
+      when: nvidia_driver_version == 'latest'
+
+    - name: Install CUDA toolkit
+      ansible.builtin.package:
+        name: "cuda-{{ cuda_version | replace('.', '-') }}"
+        state: present
+      when: install_cuda | bool
+
+    - name: Check if reboot is required
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+      when: ansible_os_family == "Debian"
+
+    - name: Reboot if needed
+      ansible.builtin.reboot:
+        msg: "Rebooting for NVIDIA driver installation"
+        reboot_timeout: 600
+      when:
+        - reboot_if_needed | bool
+        - reboot_required.stat.exists | default(false)
+
+    - name: Verify NVIDIA driver installation
+      ansible.builtin.command: nvidia-smi
+      register: nvidia_smi_output
+      changed_when: false
+
+    - name: Display NVIDIA driver status
+      ansible.builtin.debug:
+        msg: "{{ nvidia_smi_output.stdout_lines }}"

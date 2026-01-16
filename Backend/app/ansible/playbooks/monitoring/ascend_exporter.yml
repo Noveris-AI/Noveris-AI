@@ -1,0 +1,427 @@
+---
+# Huawei Ascend NPU Exporter Deployment Playbook
+# Deploys metrics exporter for Huawei Ascend NPU devices
+#
+# Variables:
+#   ascend_exporter_port: Metrics port (default: 9401)
+#   ascend_toolkit_path: Path to Ascend toolkit (default: /usr/local/Ascend)
+#   deploy_mode: systemd or docker
+
+- name: Deploy Ascend NPU Exporter
+  hosts: all
+  gather_facts: true
+  become: true
+  vars:
+    ascend_exporter_port: 9401
+    ascend_toolkit_path: /usr/local/Ascend
+    ascend_exporter_version: "1.0.0"
+    deploy_mode: systemd
+
+  tasks:
+    # ==========================================================================
+    # Pre-flight Checks
+    # ==========================================================================
+    - name: Check for Ascend NPU devices
+      ansible.builtin.command: "{{ ascend_toolkit_path }}/ascend-toolkit/latest/bin/npu-smi info"
+      register: npu_check
+      failed_when: false
+      changed_when: false
+      environment:
+        LD_LIBRARY_PATH: "{{ ascend_toolkit_path }}/ascend-toolkit/latest/lib64"
+
+    - name: Skip if no Ascend NPU
+      ansible.builtin.meta: end_host
+      when: npu_check.rc != 0
+
+    - name: Gather NPU information
+      ansible.builtin.set_fact:
+        npu_available: true
+        npu_info: "{{ npu_check.stdout }}"
+
+    # ==========================================================================
+    # Create Exporter Script
+    # ==========================================================================
+    - name: Create exporter directory
+      ansible.builtin.file:
+        path: /opt/ascend-exporter
+        state: directory
+        mode: '0755'
+
+    - name: Create Ascend NPU exporter script
+      ansible.builtin.copy:
+        dest: /opt/ascend-exporter/ascend_exporter.py
+        mode: '0755'
+        content: |
+          #!/usr/bin/env python3
+          """
+          Huawei Ascend NPU Prometheus Exporter
+          Exports NPU metrics in Prometheus format
+          """
+
+          import subprocess
+          import re
+          import time
+          import json
+          import http.server
+          import socketserver
+          import os
+          from typing import Dict, List, Optional
+
+          NPU_SMI_PATH = os.environ.get('NPU_SMI_PATH', '{{ ascend_toolkit_path }}/ascend-toolkit/latest/bin/npu-smi')
+          PORT = int(os.environ.get('EXPORTER_PORT', '{{ ascend_exporter_port }}'))
+
+
+          def run_npu_smi(args: List[str]) -> Optional[str]:
+              """Run npu-smi command and return output."""
+              try:
+                  env = os.environ.copy()
+                  env['LD_LIBRARY_PATH'] = '{{ ascend_toolkit_path }}/ascend-toolkit/latest/lib64'
+                  result = subprocess.run(
+                      [NPU_SMI_PATH] + args,
+                      capture_output=True,
+                      text=True,
+                      timeout=10,
+                      env=env
+                  )
+                  if result.returncode == 0:
+                      return result.stdout
+              except Exception as e:
+                  print(f"Error running npu-smi: {e}")
+              return None
+
+
+          def parse_npu_info() -> List[Dict]:
+              """Parse NPU information from npu-smi."""
+              output = run_npu_smi(['info', '-t', 'board'])
+              if not output:
+                  return []
+
+              npus = []
+              current_npu = {}
+
+              for line in output.split('\n'):
+                  if 'NPU ID' in line:
+                      if current_npu:
+                          npus.append(current_npu)
+                      current_npu = {}
+                      match = re.search(r'NPU ID\s*:\s*(\d+)', line)
+                      if match:
+                          current_npu['npu_id'] = match.group(1)
+                  elif 'Chip ID' in line:
+                      match = re.search(r'Chip ID\s*:\s*(\d+)', line)
+                      if match:
+                          current_npu['chip_id'] = match.group(1)
+                  elif 'Name' in line and 'npu_id' in current_npu:
+                      match = re.search(r'Name\s*:\s*(.+)', line)
+                      if match:
+                          current_npu['name'] = match.group(1).strip()
+
+              if current_npu:
+                  npus.append(current_npu)
+
+              return npus
+
+
+          def parse_health_info() -> Dict[str, Dict]:
+              """Parse health information."""
+              output = run_npu_smi(['info', '-t', 'health'])
+              if not output:
+                  return {}
+
+              health = {}
+              current_npu = None
+
+              for line in output.split('\n'):
+                  if 'NPU ID' in line:
+                      match = re.search(r'NPU ID\s*:\s*(\d+)', line)
+                      if match:
+                          current_npu = match.group(1)
+                          health[current_npu] = {'status': 0}
+                  elif current_npu and 'Health' in line:
+                      if 'OK' in line.upper():
+                          health[current_npu]['status'] = 0
+                      else:
+                          health[current_npu]['status'] = 1
+
+              return health
+
+
+          def parse_power_info() -> Dict[str, Dict]:
+              """Parse power information."""
+              output = run_npu_smi(['info', '-t', 'power'])
+              if not output:
+                  return {}
+
+              power = {}
+              current_npu = None
+
+              for line in output.split('\n'):
+                  if 'NPU ID' in line:
+                      match = re.search(r'NPU ID\s*:\s*(\d+)', line)
+                      if match:
+                          current_npu = match.group(1)
+                          power[current_npu] = {}
+                  elif current_npu:
+                      if 'Power' in line and 'W' in line:
+                          match = re.search(r'(\d+\.?\d*)\s*W', line)
+                          if match:
+                              power[current_npu]['power_watts'] = float(match.group(1))
+
+              return power
+
+
+          def parse_temp_info() -> Dict[str, Dict]:
+              """Parse temperature information."""
+              output = run_npu_smi(['info', '-t', 'temp'])
+              if not output:
+                  return {}
+
+              temps = {}
+              current_npu = None
+
+              for line in output.split('\n'):
+                  if 'NPU ID' in line:
+                      match = re.search(r'NPU ID\s*:\s*(\d+)', line)
+                      if match:
+                          current_npu = match.group(1)
+                          temps[current_npu] = {}
+                  elif current_npu:
+                      # Parse temperature values
+                      temp_match = re.search(r'(\d+)\s*C', line)
+                      if temp_match:
+                          temps[current_npu]['temperature'] = int(temp_match.group(1))
+
+              return temps
+
+
+          def parse_memory_info() -> Dict[str, Dict]:
+              """Parse memory information."""
+              output = run_npu_smi(['info', '-t', 'memory'])
+              if not output:
+                  return {}
+
+              memory = {}
+              current_npu = None
+
+              for line in output.split('\n'):
+                  if 'NPU ID' in line:
+                      match = re.search(r'NPU ID\s*:\s*(\d+)', line)
+                      if match:
+                          current_npu = match.group(1)
+                          memory[current_npu] = {}
+                  elif current_npu:
+                      # HBM memory
+                      hbm_match = re.search(r'HBM.*?(\d+)\s*/\s*(\d+)', line)
+                      if hbm_match:
+                          memory[current_npu]['hbm_used_mb'] = int(hbm_match.group(1))
+                          memory[current_npu]['hbm_total_mb'] = int(hbm_match.group(2))
+
+              return memory
+
+
+          def parse_utilization_info() -> Dict[str, Dict]:
+              """Parse utilization information."""
+              output = run_npu_smi(['info', '-t', 'usages'])
+              if not output:
+                  return {}
+
+              util = {}
+              current_npu = None
+
+              for line in output.split('\n'):
+                  if 'NPU ID' in line:
+                      match = re.search(r'NPU ID\s*:\s*(\d+)', line)
+                      if match:
+                          current_npu = match.group(1)
+                          util[current_npu] = {}
+                  elif current_npu:
+                      # AICore utilization
+                      aicore_match = re.search(r'AICore.*?(\d+)\s*%', line)
+                      if aicore_match:
+                          util[current_npu]['aicore_util'] = int(aicore_match.group(1))
+
+              return util
+
+
+          def generate_metrics() -> str:
+              """Generate Prometheus metrics."""
+              lines = []
+              hostname = os.uname().nodename
+
+              # Get all NPU information
+              npus = parse_npu_info()
+              health = parse_health_info()
+              power = parse_power_info()
+              temps = parse_temp_info()
+              memory = parse_memory_info()
+              util = parse_utilization_info()
+
+              # NPU Up metric
+              lines.append('# HELP npu_up Whether the NPU is accessible')
+              lines.append('# TYPE npu_up gauge')
+              for npu in npus:
+                  npu_id = npu.get('npu_id', '0')
+                  name = npu.get('name', 'unknown')
+                  lines.append(f'npu_up{{hostname="{hostname}",npu_id="{npu_id}",model="{name}"}} 1')
+
+              # Health status
+              lines.append('# HELP npu_chip_info_health_status NPU health status (0=OK, 1=Error)')
+              lines.append('# TYPE npu_chip_info_health_status gauge')
+              for npu_id, data in health.items():
+                  lines.append(f'npu_chip_info_health_status{{hostname="{hostname}",npu_id="{npu_id}"}} {data.get("status", 0)}')
+
+              # Temperature
+              lines.append('# HELP npu_chip_info_temperature NPU temperature in Celsius')
+              lines.append('# TYPE npu_chip_info_temperature gauge')
+              for npu_id, data in temps.items():
+                  if 'temperature' in data:
+                      lines.append(f'npu_chip_info_temperature{{hostname="{hostname}",npu_id="{npu_id}"}} {data["temperature"]}')
+
+              # Power
+              lines.append('# HELP npu_chip_info_power_watts NPU power consumption in Watts')
+              lines.append('# TYPE npu_chip_info_power_watts gauge')
+              for npu_id, data in power.items():
+                  if 'power_watts' in data:
+                      lines.append(f'npu_chip_info_power_watts{{hostname="{hostname}",npu_id="{npu_id}"}} {data["power_watts"]}')
+
+              # Memory
+              lines.append('# HELP npu_chip_info_hbm_used_bytes NPU HBM memory used in bytes')
+              lines.append('# TYPE npu_chip_info_hbm_used_bytes gauge')
+              lines.append('# HELP npu_chip_info_hbm_total_bytes NPU HBM memory total in bytes')
+              lines.append('# TYPE npu_chip_info_hbm_total_bytes gauge')
+              for npu_id, data in memory.items():
+                  if 'hbm_used_mb' in data:
+                      used_bytes = data['hbm_used_mb'] * 1024 * 1024
+                      lines.append(f'npu_chip_info_hbm_used_bytes{{hostname="{hostname}",npu_id="{npu_id}"}} {used_bytes}')
+                  if 'hbm_total_mb' in data:
+                      total_bytes = data['hbm_total_mb'] * 1024 * 1024
+                      lines.append(f'npu_chip_info_hbm_total_bytes{{hostname="{hostname}",npu_id="{npu_id}"}} {total_bytes}')
+
+              # Utilization
+              lines.append('# HELP npu_chip_info_utilization NPU AI Core utilization percentage')
+              lines.append('# TYPE npu_chip_info_utilization gauge')
+              for npu_id, data in util.items():
+                  if 'aicore_util' in data:
+                      lines.append(f'npu_chip_info_utilization{{hostname="{hostname}",npu_id="{npu_id}"}} {data["aicore_util"]}')
+
+              return '\n'.join(lines) + '\n'
+
+
+          class MetricsHandler(http.server.BaseHTTPRequestHandler):
+              """HTTP handler for metrics endpoint."""
+
+              def do_GET(self):
+                  if self.path == '/metrics':
+                      metrics = generate_metrics()
+                      self.send_response(200)
+                      self.send_header('Content-Type', 'text/plain; charset=utf-8')
+                      self.end_headers()
+                      self.wfile.write(metrics.encode('utf-8'))
+                  elif self.path == '/health' or self.path == '/':
+                      self.send_response(200)
+                      self.send_header('Content-Type', 'text/plain')
+                      self.end_headers()
+                      self.wfile.write(b'OK')
+                  else:
+                      self.send_response(404)
+                      self.end_headers()
+
+              def log_message(self, format, *args):
+                  pass  # Suppress access logs
+
+
+          if __name__ == '__main__':
+              print(f'Starting Ascend NPU Exporter on port {PORT}')
+              with socketserver.TCPServer(('', PORT), MetricsHandler) as httpd:
+                  try:
+                      httpd.serve_forever()
+                  except KeyboardInterrupt:
+                      print('Shutting down...')
+      notify: Restart ascend-exporter
+
+    # ==========================================================================
+    # Systemd Service
+    # ==========================================================================
+    - name: Create ascend-exporter systemd service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/ascend-exporter.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Huawei Ascend NPU Prometheus Exporter
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=root
+          Environment=LD_LIBRARY_PATH={{ ascend_toolkit_path }}/ascend-toolkit/latest/lib64
+          Environment=NPU_SMI_PATH={{ ascend_toolkit_path }}/ascend-toolkit/latest/bin/npu-smi
+          Environment=EXPORTER_PORT={{ ascend_exporter_port }}
+          ExecStart=/usr/bin/python3 /opt/ascend-exporter/ascend_exporter.py
+          Restart=always
+          RestartSec=10
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Reload systemd
+
+    - name: Enable and start Ascend Exporter
+      ansible.builtin.systemd:
+        name: ascend-exporter
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    # ==========================================================================
+    # Firewall Configuration
+    # ==========================================================================
+    - name: Open firewall port (firewalld)
+      ansible.posix.firewalld:
+        port: "{{ ascend_exporter_port }}/tcp"
+        permanent: true
+        state: enabled
+        immediate: true
+      failed_when: false
+      when: ansible_os_family == "RedHat"
+
+    - name: Open firewall port (ufw)
+      community.general.ufw:
+        rule: allow
+        port: "{{ ascend_exporter_port }}"
+        proto: tcp
+      failed_when: false
+      when: ansible_distribution == "Ubuntu"
+
+    # ==========================================================================
+    # Verification
+    # ==========================================================================
+    - name: Wait for Ascend Exporter to start
+      ansible.builtin.wait_for:
+        port: "{{ ascend_exporter_port }}"
+        timeout: 30
+      failed_when: false
+
+    - name: Verify Ascend Exporter metrics
+      ansible.builtin.uri:
+        url: "http://localhost:{{ ascend_exporter_port }}/metrics"
+        return_content: true
+      register: metrics_check
+      failed_when: false
+
+    - name: Display deployment summary
+      ansible.builtin.debug:
+        msg:
+          - "Ascend NPU Exporter Deployment Complete"
+          - "Port: {{ ascend_exporter_port }}"
+          - "Metrics endpoint: http://{{ ansible_default_ipv4.address }}:{{ ascend_exporter_port }}/metrics"
+          - "Status: {{ 'Running' if metrics_check.status | default(0) == 200 else 'Check required' }}"
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Restart ascend-exporter
+      ansible.builtin.systemd:
+        name: ascend-exporter
+        state: restarted

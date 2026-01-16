@@ -1,0 +1,323 @@
+---
+# Collect Facts Playbook - Comprehensive Hardware Discovery
+# This playbook collects detailed hardware information including:
+# - CPU, memory, disk, network
+# - GPU/NPU accelerators (NVIDIA, AMD, Intel, Huawei Ascend, T-Head)
+# - Driver and toolkit versions
+# - System configuration
+
+- name: Collect Node Facts
+  hosts: all
+  gather_facts: true
+  become: true
+  vars:
+    # Output directory for facts
+    facts_output_dir: /tmp/noveris_facts
+    # Include extended facts
+    collect_gpu_info: true
+    collect_npu_info: true
+    collect_pci_info: true
+
+  tasks:
+    # ==========================================================================
+    # Preparation
+    # ==========================================================================
+    - name: Create facts output directory
+      ansible.builtin.file:
+        path: "{{ facts_output_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Initialize accelerators list
+      ansible.builtin.set_fact:
+        noveris_accelerators: []
+        driver_info: {}
+
+    # ==========================================================================
+    # System Facts
+    # ==========================================================================
+    - name: Gather full system facts
+      ansible.builtin.setup:
+        gather_subset: all
+
+    - name: Get kernel parameters
+      ansible.builtin.command: uname -r
+      register: kernel_version_output
+      changed_when: false
+
+    - name: Get OS release info
+      ansible.builtin.slurp:
+        src: /etc/os-release
+      register: os_release_content
+      failed_when: false
+
+    # ==========================================================================
+    # NVIDIA GPU Detection
+    # ==========================================================================
+    - name: Check for nvidia-smi
+      ansible.builtin.command: which nvidia-smi
+      register: nvidia_smi_check
+      failed_when: false
+      changed_when: false
+      when: collect_gpu_info
+
+    - name: Query NVIDIA GPUs
+      ansible.builtin.command: >
+        nvidia-smi --query-gpu=index,name,uuid,pci.bus_id,pci.device_id,memory.total,driver_version,compute_cap,mig.mode.current
+        --format=csv,noheader,nounits
+      register: nvidia_smi_output
+      failed_when: false
+      changed_when: false
+      when:
+        - collect_gpu_info
+        - nvidia_smi_check.rc == 0
+
+    - name: Query NVIDIA MIG instances
+      ansible.builtin.command: nvidia-smi mig -lgi
+      register: nvidia_mig_output
+      failed_when: false
+      changed_when: false
+      when:
+        - collect_gpu_info
+        - nvidia_smi_check.rc == 0
+
+    - name: Get CUDA version
+      ansible.builtin.command: nvcc --version
+      register: nvcc_output
+      failed_when: false
+      changed_when: false
+      when: collect_gpu_info
+
+    - name: Parse NVIDIA GPU info
+      ansible.builtin.set_fact:
+        nvidia_gpus: "{{ nvidia_gpus | default([]) + [{'type': 'nvidia_gpu', 'vendor': 'nvidia', 'model': item.split(',')[1] | trim, 'device_id': item.split(',')[2] | trim, 'bus_id': item.split(',')[3] | trim, 'pci_device_id': item.split(',')[4] | trim, 'memory_mb': (item.split(',')[5] | trim | int) | default(none), 'driver_version': item.split(',')[6] | trim, 'compute_capability': item.split(',')[7] | trim, 'mig_capable': 'A100' in item or 'H100' in item, 'mig_mode': {'enabled': item.split(',')[8] | trim | lower == 'enabled'} if item.split(',') | length > 8 else none}] }}"
+      loop: "{{ nvidia_smi_output.stdout_lines | default([]) }}"
+      when:
+        - nvidia_smi_output is defined
+        - nvidia_smi_output.rc == 0
+        - nvidia_smi_output.stdout_lines | length > 0
+
+    - name: Add NVIDIA GPUs to accelerators
+      ansible.builtin.set_fact:
+        noveris_accelerators: "{{ noveris_accelerators + nvidia_gpus | default([]) }}"
+      when: nvidia_gpus is defined
+
+    # ==========================================================================
+    # AMD GPU Detection
+    # ==========================================================================
+    - name: Check for amd-smi
+      ansible.builtin.command: which amd-smi
+      register: amd_smi_check
+      failed_when: false
+      changed_when: false
+      when: collect_gpu_info
+
+    - name: Check for rocm-smi (fallback)
+      ansible.builtin.command: which rocm-smi
+      register: rocm_smi_check
+      failed_when: false
+      changed_when: false
+      when:
+        - collect_gpu_info
+        - amd_smi_check.rc != 0
+
+    - name: Query AMD GPUs via amd-smi
+      ansible.builtin.command: amd-smi static --json
+      register: amd_smi_output
+      failed_when: false
+      changed_when: false
+      when:
+        - collect_gpu_info
+        - amd_smi_check.rc == 0
+
+    - name: Query AMD GPUs via rocm-smi (fallback)
+      ansible.builtin.command: >
+        rocm-smi --showid --showtemp --showuse --showpower
+        --showproductname --showmeminfo vram --json
+      register: rocm_smi_output
+      failed_when: false
+      changed_when: false
+      when:
+        - collect_gpu_info
+        - amd_smi_check.rc != 0
+        - rocm_smi_check.rc == 0
+
+    - name: Parse AMD GPU info (amd-smi)
+      ansible.builtin.set_fact:
+        amd_gpus: "{{ (amd_smi_output.stdout | from_json).gpus | default([]) | map('combine', {'type': 'amd_gpu', 'vendor': 'amd'}) | list }}"
+      failed_when: false
+      when:
+        - amd_smi_output is defined
+        - amd_smi_output.rc == 0
+
+    - name: Add AMD GPUs to accelerators
+      ansible.builtin.set_fact:
+        noveris_accelerators: "{{ noveris_accelerators + amd_gpus | default([]) }}"
+      when: amd_gpus is defined
+
+    # ==========================================================================
+    # Intel GPU Detection
+    # ==========================================================================
+    - name: Check for xpu-smi
+      ansible.builtin.command: which xpu-smi
+      register: xpu_smi_check
+      failed_when: false
+      changed_when: false
+      when: collect_gpu_info
+
+    - name: Query Intel GPUs via xpu-smi
+      ansible.builtin.command: xpu-smi discovery --json
+      register: xpu_smi_output
+      failed_when: false
+      changed_when: false
+      when:
+        - collect_gpu_info
+        - xpu_smi_check.rc == 0
+
+    - name: Parse Intel GPU info
+      ansible.builtin.set_fact:
+        intel_gpus: "{{ (xpu_smi_output.stdout | from_json).device_list | default([]) | map('combine', {'type': 'intel_gpu', 'vendor': 'intel'}) | list }}"
+      failed_when: false
+      when:
+        - xpu_smi_output is defined
+        - xpu_smi_output.rc == 0
+
+    - name: Add Intel GPUs to accelerators
+      ansible.builtin.set_fact:
+        noveris_accelerators: "{{ noveris_accelerators + intel_gpus | default([]) }}"
+      when: intel_gpus is defined
+
+    # ==========================================================================
+    # Huawei Ascend NPU Detection
+    # ==========================================================================
+    - name: Check for npu-smi
+      ansible.builtin.command: which npu-smi
+      register: npu_smi_check
+      failed_when: false
+      changed_when: false
+      when: collect_npu_info
+
+    - name: Query Huawei Ascend NPUs
+      ansible.builtin.command: npu-smi info
+      register: npu_smi_output
+      failed_when: false
+      changed_when: false
+      when:
+        - collect_npu_info
+        - npu_smi_check.rc == 0
+
+    - name: Query Ascend NPU detailed info
+      ansible.builtin.command: "npu-smi info -t common -i {{ item }}"
+      loop: "{{ range(0, 8) | list }}"
+      register: npu_detail_outputs
+      failed_when: false
+      changed_when: false
+      when:
+        - collect_npu_info
+        - npu_smi_check.rc == 0
+
+    # ==========================================================================
+    # Generic PCI Accelerator Detection (Fallback)
+    # ==========================================================================
+    - name: Get PCI accelerator devices
+      ansible.builtin.command: lspci -nn -d ::0302
+      register: pci_3d_output
+      failed_when: false
+      changed_when: false
+      when: collect_pci_info
+
+    - name: Get PCI processing accelerators
+      ansible.builtin.command: lspci -nn -d ::1200
+      register: pci_accel_output
+      failed_when: false
+      changed_when: false
+      when: collect_pci_info
+
+    # ==========================================================================
+    # Network Information
+    # ==========================================================================
+    - name: Get network interfaces detail
+      ansible.builtin.command: ip -j addr show
+      register: ip_addr_output
+      failed_when: false
+      changed_when: false
+
+    - name: Get network routes
+      ansible.builtin.command: ip -j route show
+      register: ip_route_output
+      failed_when: false
+      changed_when: false
+
+    # ==========================================================================
+    # Disk Information
+    # ==========================================================================
+    - name: Get block devices
+      ansible.builtin.command: lsblk -J -o NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE,MODEL
+      register: lsblk_output
+      failed_when: false
+      changed_when: false
+
+    - name: Get disk space usage
+      ansible.builtin.command: df -h --output=source,fstype,size,used,avail,pcent,target
+      register: df_output
+      failed_when: false
+      changed_when: false
+
+    # ==========================================================================
+    # Compile Final Facts
+    # ==========================================================================
+    - name: Compile comprehensive facts
+      ansible.builtin.set_fact:
+        noveris_facts:
+          collected_at: "{{ ansible_date_time.iso8601 }}"
+          collection_method: ansible
+          ansible_version: "{{ ansible_version.full }}"
+          # OS Info
+          os_family: "{{ ansible_os_family }}"
+          os_distribution: "{{ ansible_distribution }}"
+          os_version: "{{ ansible_distribution_version }}"
+          os_release: "{{ ansible_distribution }} {{ ansible_distribution_version }}"
+          kernel_version: "{{ ansible_kernel }}"
+          architecture: "{{ ansible_architecture }}"
+          # CPU Info
+          cpu_model: "{{ ansible_processor[2] | default('Unknown') }}"
+          cpu_cores: "{{ ansible_processor_cores }}"
+          cpu_threads_per_core: "{{ ansible_processor_threads_per_core | default(1) }}"
+          cpu_physical_cores: "{{ ansible_processor_count * ansible_processor_cores }}"
+          cpu_vcpus: "{{ ansible_processor_vcpus }}"
+          # Memory Info
+          mem_total_mb: "{{ ansible_memtotal_mb }}"
+          swap_total_mb: "{{ ansible_swaptotal_mb }}"
+          # Network Info
+          default_ipv4: "{{ ansible_default_ipv4.address | default('') }}"
+          default_ipv6: "{{ ansible_default_ipv6.address | default('') }}"
+          interfaces: "{{ ansible_interfaces }}"
+          # Hostname
+          hostname: "{{ ansible_hostname }}"
+          fqdn: "{{ ansible_fqdn }}"
+          # Accelerators
+          accelerators: "{{ noveris_accelerators }}"
+          # Driver Info
+          nvidia_driver: "{{ nvidia_gpus[0].driver_version | default(none) if nvidia_gpus is defined and nvidia_gpus | length > 0 else none }}"
+          cuda_version: "{{ nvcc_output.stdout | regex_search('release ([0-9.]+)', '\\1') | first | default(none) if nvcc_output is defined and nvcc_output.rc == 0 else none }}"
+
+    - name: Write facts to JSON file
+      ansible.builtin.copy:
+        content: "{{ noveris_facts | to_nice_json }}"
+        dest: "{{ facts_output_dir }}/facts.json"
+        mode: '0644'
+
+    - name: Display accelerator summary
+      ansible.builtin.debug:
+        msg:
+          - "Node: {{ ansible_hostname }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "CPU: {{ ansible_processor_cores }} cores"
+          - "Memory: {{ ansible_memtotal_mb }} MB"
+          - "Accelerators found: {{ noveris_accelerators | length }}"
+
+  handlers:
+    - name: Cleanup temp files
+      ansible.builtin.file:
+        path: "{{ facts_output_dir }}/temp"
+        state: absent

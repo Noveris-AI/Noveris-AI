@@ -1,0 +1,1311 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.0.0",
+  "generated_at": "2026-01-15T00:00:00Z",
+  "description": "Noveris AI Platform Permission Manifest - Single Source of Truth",
+
+  "modules": [
+    {
+      "module_key": "dashboard",
+      "title": "Dashboard",
+      "title_i18n": "authz.modules.dashboard",
+      "description": "Main dashboard and overview",
+      "description_i18n": "authz.modules.dashboard_desc",
+      "default_enabled": true,
+      "icon": "LayoutDashboard",
+      "order": 1
+    },
+    {
+      "module_key": "node",
+      "title": "Node Management",
+      "title_i18n": "authz.modules.node",
+      "description": "Manage compute nodes and hardware resources",
+      "description_i18n": "authz.modules.node_desc",
+      "default_enabled": true,
+      "icon": "Server",
+      "order": 2
+    },
+    {
+      "module_key": "market",
+      "title": "Model Market",
+      "title_i18n": "authz.modules.market",
+      "description": "Browse and manage AI models from HuggingFace",
+      "description_i18n": "authz.modules.market_desc",
+      "default_enabled": true,
+      "icon": "Store",
+      "order": 3
+    },
+    {
+      "module_key": "deploy",
+      "title": "Model Deployment",
+      "title_i18n": "authz.modules.deploy",
+      "description": "Deploy and manage model inference services",
+      "description_i18n": "authz.modules.deploy_desc",
+      "default_enabled": true,
+      "icon": "Rocket",
+      "order": 4
+    },
+    {
+      "module_key": "forward",
+      "title": "Model Forwarding",
+      "title_i18n": "authz.modules.forward",
+      "description": "AI Gateway for routing and load balancing",
+      "description_i18n": "authz.modules.forward_desc",
+      "default_enabled": true,
+      "icon": "GitBranch",
+      "order": 5
+    },
+    {
+      "module_key": "chat",
+      "title": "Chat Console",
+      "title_i18n": "authz.modules.chat",
+      "description": "Chat interface and conversation management",
+      "description_i18n": "authz.modules.chat_desc",
+      "default_enabled": true,
+      "icon": "MessageSquare",
+      "order": 6
+    },
+    {
+      "module_key": "playground",
+      "title": "Playground",
+      "title_i18n": "authz.modules.playground",
+      "description": "Test different AI model capabilities",
+      "description_i18n": "authz.modules.playground_desc",
+      "default_enabled": true,
+      "icon": "FlaskConical",
+      "order": 7
+    },
+    {
+      "module_key": "security",
+      "title": "Security",
+      "title_i18n": "authz.modules.security",
+      "description": "User and permission management",
+      "description_i18n": "authz.modules.security_desc",
+      "default_enabled": true,
+      "icon": "Shield",
+      "order": 8
+    }
+  ],
+
+  "permissions": [
+    {
+      "key": "dashboard.overview.view",
+      "module_key": "dashboard",
+      "feature": "overview",
+      "action": "view",
+      "title": "View Dashboard",
+      "title_i18n": "authz.perms.dashboard.overview.view",
+      "description": "View main dashboard overview",
+      "ui": {
+        "routes": ["/dashboard/homepage"],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/dashboard/stats", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "dashboard.monitoring.view",
+      "module_key": "dashboard",
+      "feature": "monitoring",
+      "action": "view",
+      "title": "View Monitoring",
+      "title_i18n": "authz.perms.dashboard.monitoring.view",
+      "description": "View system monitoring dashboard",
+      "ui": {
+        "routes": ["/dashboard/monitoring"],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/monitoring/*", "method": "GET"}
+        ]
+      }
+    },
+
+    {
+      "key": "node.node.view",
+      "module_key": "node",
+      "feature": "node",
+      "action": "view",
+      "title": "View Nodes",
+      "title_i18n": "authz.perms.node.node.view",
+      "description": "View node list and details",
+      "ui": {
+        "routes": ["/dashboard/nodes", "/dashboard/nodes/:nodeId"],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/nodes", "method": "GET"},
+          {"path": "/api/v1/nodes/{nodeId}", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "node.node.create",
+      "module_key": "node",
+      "feature": "node",
+      "action": "create",
+      "title": "Create Node",
+      "title_i18n": "authz.perms.node.node.create",
+      "description": "Add new compute nodes",
+      "ui": {
+        "routes": ["/dashboard/nodes/add"],
+        "buttons": ["node-create-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/nodes", "method": "POST"}
+        ]
+      }
+    },
+    {
+      "key": "node.node.update",
+      "module_key": "node",
+      "feature": "node",
+      "action": "update",
+      "title": "Update Node",
+      "title_i18n": "authz.perms.node.node.update",
+      "description": "Update node configuration",
+      "ui": {
+        "routes": [],
+        "buttons": ["node-edit-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/nodes/{nodeId}", "method": "PATCH"},
+          {"path": "/api/v1/nodes/{nodeId}", "method": "PUT"}
+        ]
+      }
+    },
+    {
+      "key": "node.node.delete",
+      "module_key": "node",
+      "feature": "node",
+      "action": "delete",
+      "title": "Delete Node",
+      "title_i18n": "authz.perms.node.node.delete",
+      "description": "Remove nodes from management",
+      "ui": {
+        "routes": [],
+        "buttons": ["node-delete-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/nodes/{nodeId}", "method": "DELETE"}
+        ]
+      }
+    },
+    {
+      "key": "node.node.execute",
+      "module_key": "node",
+      "feature": "node",
+      "action": "execute",
+      "title": "Execute Node Operations",
+      "title_i18n": "authz.perms.node.node.execute",
+      "description": "Execute commands and operations on nodes",
+      "ui": {
+        "routes": [],
+        "buttons": ["node-probe-btn", "node-bootstrap-btn", "node-reboot-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/nodes/{nodeId}/probe", "method": "POST"},
+          {"path": "/api/v1/nodes/{nodeId}/bootstrap", "method": "POST"},
+          {"path": "/api/v1/nodes/{nodeId}/reboot", "method": "POST"}
+        ]
+      }
+    },
+    {
+      "key": "node.node.maintenance",
+      "module_key": "node",
+      "feature": "node",
+      "action": "maintenance",
+      "title": "Node Maintenance",
+      "title_i18n": "authz.perms.node.node.maintenance",
+      "description": "Put nodes into maintenance mode",
+      "ui": {
+        "routes": [],
+        "buttons": ["node-maintenance-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/nodes/{nodeId}/maintenance", "method": "POST"}
+        ]
+      }
+    },
+    {
+      "key": "node.credential.view",
+      "module_key": "node",
+      "feature": "credential",
+      "action": "view",
+      "title": "View Credentials",
+      "title_i18n": "authz.perms.node.credential.view",
+      "description": "View node credentials (masked)",
+      "ui": {
+        "routes": [],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/nodes/{nodeId}/credentials", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "node.credential.manage",
+      "module_key": "node",
+      "feature": "credential",
+      "action": "manage",
+      "title": "Manage Credentials",
+      "title_i18n": "authz.perms.node.credential.manage",
+      "description": "Create, update, delete node credentials",
+      "ui": {
+        "routes": [],
+        "buttons": ["credential-add-btn", "credential-edit-btn", "credential-delete-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/nodes/{nodeId}/credentials", "method": "POST"},
+          {"path": "/api/v1/nodes/{nodeId}/credentials/{credentialId}", "method": "PUT"},
+          {"path": "/api/v1/nodes/{nodeId}/credentials/{credentialId}", "method": "DELETE"}
+        ]
+      }
+    },
+    {
+      "key": "node.job.view",
+      "module_key": "node",
+      "feature": "job",
+      "action": "view",
+      "title": "View Jobs",
+      "title_i18n": "authz.perms.node.job.view",
+      "description": "View job execution history",
+      "ui": {
+        "routes": ["/dashboard/jobs", "/dashboard/jobs/:jobId"],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/jobs", "method": "GET"},
+          {"path": "/api/v1/jobs/{jobId}", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "node.job.execute",
+      "module_key": "node",
+      "feature": "job",
+      "action": "execute",
+      "title": "Execute Jobs",
+      "title_i18n": "authz.perms.node.job.execute",
+      "description": "Run jobs on nodes",
+      "ui": {
+        "routes": [],
+        "buttons": ["job-run-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/jobs", "method": "POST"},
+          {"path": "/api/v1/jobs/{jobId}/run", "method": "POST"}
+        ]
+      }
+    },
+    {
+      "key": "node.job.cancel",
+      "module_key": "node",
+      "feature": "job",
+      "action": "cancel",
+      "title": "Cancel Jobs",
+      "title_i18n": "authz.perms.node.job.cancel",
+      "description": "Cancel running jobs",
+      "ui": {
+        "routes": [],
+        "buttons": ["job-cancel-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/jobs/{jobId}/cancel", "method": "POST"}
+        ]
+      }
+    },
+    {
+      "key": "node.group.view",
+      "module_key": "node",
+      "feature": "group",
+      "action": "view",
+      "title": "View Node Groups",
+      "title_i18n": "authz.perms.node.group.view",
+      "description": "View node group configuration",
+      "ui": {
+        "routes": [],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/nodes/groups", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "node.group.manage",
+      "module_key": "node",
+      "feature": "group",
+      "action": "manage",
+      "title": "Manage Node Groups",
+      "title_i18n": "authz.perms.node.group.manage",
+      "description": "Create, update, delete node groups",
+      "ui": {
+        "routes": [],
+        "buttons": ["group-create-btn", "group-edit-btn", "group-delete-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/nodes/groups", "method": "POST"},
+          {"path": "/api/v1/nodes/groups/{groupId}", "method": "PUT"},
+          {"path": "/api/v1/nodes/groups/{groupId}", "method": "DELETE"}
+        ]
+      }
+    },
+
+    {
+      "key": "market.model.view",
+      "module_key": "market",
+      "feature": "model",
+      "action": "view",
+      "title": "View Models",
+      "title_i18n": "authz.perms.market.model.view",
+      "description": "Browse models in the market",
+      "ui": {
+        "routes": ["/dashboard/market"],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/models", "method": "GET"},
+          {"path": "/api/v1/models/{modelId}", "method": "GET"},
+          {"path": "/api/v1/models/trending", "method": "GET"},
+          {"path": "/api/v1/models/recent", "method": "GET"},
+          {"path": "/api/v1/models/stats", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "market.model.sync",
+      "module_key": "market",
+      "feature": "model",
+      "action": "sync",
+      "title": "Sync Models",
+      "title_i18n": "authz.perms.market.model.sync",
+      "description": "Trigger model synchronization from HuggingFace",
+      "ui": {
+        "routes": [],
+        "buttons": ["market-sync-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/models/sync/trigger", "method": "POST"},
+          {"path": "/api/v1/models/sync/status", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "market.bookmark.view",
+      "module_key": "market",
+      "feature": "bookmark",
+      "action": "view",
+      "title": "View Bookmarks",
+      "title_i18n": "authz.perms.market.bookmark.view",
+      "description": "View bookmarked models",
+      "ui": {
+        "routes": [],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/models/bookmarks", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "market.bookmark.manage",
+      "module_key": "market",
+      "feature": "bookmark",
+      "action": "manage",
+      "title": "Manage Bookmarks",
+      "title_i18n": "authz.perms.market.bookmark.manage",
+      "description": "Add or remove model bookmarks",
+      "ui": {
+        "routes": [],
+        "buttons": ["bookmark-add-btn", "bookmark-remove-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/models/bookmarks", "method": "POST"},
+          {"path": "/api/v1/models/bookmarks/{bookmarkId}", "method": "DELETE"}
+        ]
+      }
+    },
+
+    {
+      "key": "deploy.deployment.view",
+      "module_key": "deploy",
+      "feature": "deployment",
+      "action": "view",
+      "title": "View Deployments",
+      "title_i18n": "authz.perms.deploy.deployment.view",
+      "description": "View deployment list and details",
+      "ui": {
+        "routes": ["/dashboard/deployment", "/dashboard/deployment/:deploymentId"],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/deployments", "method": "GET"},
+          {"path": "/api/v1/deployments/{deploymentId}", "method": "GET"},
+          {"path": "/api/v1/deployments/{deploymentId}/logs", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "deploy.deployment.create",
+      "module_key": "deploy",
+      "feature": "deployment",
+      "action": "create",
+      "title": "Create Deployment",
+      "title_i18n": "authz.perms.deploy.deployment.create",
+      "description": "Create new model deployments",
+      "ui": {
+        "routes": ["/dashboard/deployment/create"],
+        "buttons": ["deployment-create-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/deployments", "method": "POST"}
+        ]
+      }
+    },
+    {
+      "key": "deploy.deployment.update",
+      "module_key": "deploy",
+      "feature": "deployment",
+      "action": "update",
+      "title": "Update Deployment",
+      "title_i18n": "authz.perms.deploy.deployment.update",
+      "description": "Update deployment configuration",
+      "ui": {
+        "routes": [],
+        "buttons": ["deployment-edit-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/deployments/{deploymentId}", "method": "PATCH"},
+          {"path": "/api/v1/deployments/{deploymentId}", "method": "PUT"}
+        ]
+      }
+    },
+    {
+      "key": "deploy.deployment.delete",
+      "module_key": "deploy",
+      "feature": "deployment",
+      "action": "delete",
+      "title": "Delete Deployment",
+      "title_i18n": "authz.perms.deploy.deployment.delete",
+      "description": "Delete deployments",
+      "ui": {
+        "routes": [],
+        "buttons": ["deployment-delete-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/deployments/{deploymentId}", "method": "DELETE"}
+        ]
+      }
+    },
+    {
+      "key": "deploy.deployment.execute",
+      "module_key": "deploy",
+      "feature": "deployment",
+      "action": "execute",
+      "title": "Execute Deployment Operations",
+      "title_i18n": "authz.perms.deploy.deployment.execute",
+      "description": "Start, stop, restart deployments",
+      "ui": {
+        "routes": [],
+        "buttons": ["deployment-start-btn", "deployment-stop-btn", "deployment-restart-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/deployments/{deploymentId}/start", "method": "POST"},
+          {"path": "/api/v1/deployments/{deploymentId}/stop", "method": "POST"},
+          {"path": "/api/v1/deployments/{deploymentId}/restart", "method": "POST"}
+        ]
+      }
+    },
+
+    {
+      "key": "forward.upstream.view",
+      "module_key": "forward",
+      "feature": "upstream",
+      "action": "view",
+      "title": "View Upstreams",
+      "title_i18n": "authz.perms.forward.upstream.view",
+      "description": "View upstream providers",
+      "ui": {
+        "routes": ["/dashboard/forwarding/upstreams"],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/gateway/upstreams", "method": "GET"},
+          {"path": "/api/gateway/upstreams/{upstreamId}", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "forward.upstream.create",
+      "module_key": "forward",
+      "feature": "upstream",
+      "action": "create",
+      "title": "Create Upstream",
+      "title_i18n": "authz.perms.forward.upstream.create",
+      "description": "Add new upstream providers",
+      "ui": {
+        "routes": [],
+        "buttons": ["upstream-create-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/gateway/upstreams", "method": "POST"}
+        ]
+      }
+    },
+    {
+      "key": "forward.upstream.update",
+      "module_key": "forward",
+      "feature": "upstream",
+      "action": "update",
+      "title": "Update Upstream",
+      "title_i18n": "authz.perms.forward.upstream.update",
+      "description": "Update upstream configuration",
+      "ui": {
+        "routes": [],
+        "buttons": ["upstream-edit-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/gateway/upstreams/{upstreamId}", "method": "PUT"},
+          {"path": "/api/gateway/upstreams/{upstreamId}", "method": "PATCH"}
+        ]
+      }
+    },
+    {
+      "key": "forward.upstream.delete",
+      "module_key": "forward",
+      "feature": "upstream",
+      "action": "delete",
+      "title": "Delete Upstream",
+      "title_i18n": "authz.perms.forward.upstream.delete",
+      "description": "Remove upstream providers",
+      "ui": {
+        "routes": [],
+        "buttons": ["upstream-delete-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/gateway/upstreams/{upstreamId}", "method": "DELETE"}
+        ]
+      }
+    },
+    {
+      "key": "forward.model.view",
+      "module_key": "forward",
+      "feature": "model",
+      "action": "view",
+      "title": "View Virtual Models",
+      "title_i18n": "authz.perms.forward.model.view",
+      "description": "View virtual model mappings",
+      "ui": {
+        "routes": ["/dashboard/forwarding/models"],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/gateway/models", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "forward.model.manage",
+      "module_key": "forward",
+      "feature": "model",
+      "action": "manage",
+      "title": "Manage Virtual Models",
+      "title_i18n": "authz.perms.forward.model.manage",
+      "description": "Create, update, delete virtual models",
+      "ui": {
+        "routes": [],
+        "buttons": ["model-create-btn", "model-edit-btn", "model-delete-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/gateway/models", "method": "POST"},
+          {"path": "/api/gateway/models/{modelId}", "method": "PUT"},
+          {"path": "/api/gateway/models/{modelId}", "method": "DELETE"}
+        ]
+      }
+    },
+    {
+      "key": "forward.route.view",
+      "module_key": "forward",
+      "feature": "route",
+      "action": "view",
+      "title": "View Routes",
+      "title_i18n": "authz.perms.forward.route.view",
+      "description": "View routing policies",
+      "ui": {
+        "routes": ["/dashboard/forwarding/routes"],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/gateway/routes", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "forward.route.manage",
+      "module_key": "forward",
+      "feature": "route",
+      "action": "manage",
+      "title": "Manage Routes",
+      "title_i18n": "authz.perms.forward.route.manage",
+      "description": "Create, update, delete routes",
+      "ui": {
+        "routes": [],
+        "buttons": ["route-create-btn", "route-edit-btn", "route-delete-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/gateway/routes", "method": "POST"},
+          {"path": "/api/gateway/routes/{routeId}", "method": "PUT"},
+          {"path": "/api/gateway/routes/{routeId}", "method": "DELETE"}
+        ]
+      }
+    },
+    {
+      "key": "forward.apikey.view",
+      "module_key": "forward",
+      "feature": "apikey",
+      "action": "view",
+      "title": "View API Keys",
+      "title_i18n": "authz.perms.forward.apikey.view",
+      "description": "View API keys (masked)",
+      "ui": {
+        "routes": ["/dashboard/forwarding/api-keys"],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/gateway/api-keys", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "forward.apikey.manage",
+      "module_key": "forward",
+      "feature": "apikey",
+      "action": "manage",
+      "title": "Manage API Keys",
+      "title_i18n": "authz.perms.forward.apikey.manage",
+      "description": "Create, revoke API keys",
+      "ui": {
+        "routes": [],
+        "buttons": ["apikey-create-btn", "apikey-revoke-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/gateway/api-keys", "method": "POST"},
+          {"path": "/api/gateway/api-keys/{keyId}", "method": "DELETE"}
+        ]
+      }
+    },
+    {
+      "key": "forward.logs.view",
+      "module_key": "forward",
+      "feature": "logs",
+      "action": "view",
+      "title": "View Request Logs",
+      "title_i18n": "authz.perms.forward.logs.view",
+      "description": "View gateway request logs",
+      "ui": {
+        "routes": ["/dashboard/forwarding/logs"],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/gateway/requests", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "forward.overview.view",
+      "module_key": "forward",
+      "feature": "overview",
+      "action": "view",
+      "title": "View Gateway Overview",
+      "title_i18n": "authz.perms.forward.overview.view",
+      "description": "View gateway overview and statistics",
+      "ui": {
+        "routes": ["/dashboard/forwarding"],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/gateway/stats", "method": "GET"}
+        ]
+      }
+    },
+
+    {
+      "key": "chat.conversation.view",
+      "module_key": "chat",
+      "feature": "conversation",
+      "action": "view",
+      "title": "View Conversations",
+      "title_i18n": "authz.perms.chat.conversation.view",
+      "description": "View chat conversations",
+      "ui": {
+        "routes": ["/dashboard/chat"],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/chat/conversations", "method": "GET"},
+          {"path": "/api/chat/conversations/{conversationId}", "method": "GET"},
+          {"path": "/api/chat/conversations/{conversationId}/messages", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "chat.conversation.create",
+      "module_key": "chat",
+      "feature": "conversation",
+      "action": "create",
+      "title": "Create Conversations",
+      "title_i18n": "authz.perms.chat.conversation.create",
+      "description": "Create new chat conversations",
+      "ui": {
+        "routes": [],
+        "buttons": ["chat-new-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/chat/conversations", "method": "POST"},
+          {"path": "/api/chat/conversations/{conversationId}/messages", "method": "POST"}
+        ]
+      }
+    },
+    {
+      "key": "chat.conversation.delete",
+      "module_key": "chat",
+      "feature": "conversation",
+      "action": "delete",
+      "title": "Delete Conversations",
+      "title_i18n": "authz.perms.chat.conversation.delete",
+      "description": "Delete chat conversations",
+      "ui": {
+        "routes": [],
+        "buttons": ["chat-delete-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/chat/conversations/{conversationId}", "method": "DELETE"}
+        ]
+      }
+    },
+    {
+      "key": "chat.profile.view",
+      "module_key": "chat",
+      "feature": "profile",
+      "action": "view",
+      "title": "View Model Profiles",
+      "title_i18n": "authz.perms.chat.profile.view",
+      "description": "View chat model profiles",
+      "ui": {
+        "routes": [],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/chat/profiles", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "chat.profile.manage",
+      "module_key": "chat",
+      "feature": "profile",
+      "action": "manage",
+      "title": "Manage Model Profiles",
+      "title_i18n": "authz.perms.chat.profile.manage",
+      "description": "Create, update, delete model profiles",
+      "ui": {
+        "routes": [],
+        "buttons": ["profile-create-btn", "profile-edit-btn", "profile-delete-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/chat/profiles", "method": "POST"},
+          {"path": "/api/chat/profiles/{profileId}", "method": "PUT"},
+          {"path": "/api/chat/profiles/{profileId}", "method": "DELETE"}
+        ]
+      }
+    },
+    {
+      "key": "chat.public_app.view",
+      "module_key": "chat",
+      "feature": "public_app",
+      "action": "view",
+      "title": "View Public Apps",
+      "title_i18n": "authz.perms.chat.public_app.view",
+      "description": "View public chat applications",
+      "ui": {
+        "routes": [],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/chat/public-apps", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "chat.public_app.manage",
+      "module_key": "chat",
+      "feature": "public_app",
+      "action": "manage",
+      "title": "Manage Public Apps",
+      "title_i18n": "authz.perms.chat.public_app.manage",
+      "description": "Create, update, delete public apps",
+      "ui": {
+        "routes": [],
+        "buttons": ["public-app-create-btn", "public-app-edit-btn", "public-app-delete-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/chat/public-apps", "method": "POST"},
+          {"path": "/api/chat/public-apps/{appId}", "method": "PUT"},
+          {"path": "/api/chat/public-apps/{appId}", "method": "DELETE"}
+        ]
+      }
+    },
+    {
+      "key": "chat.attachment.upload",
+      "module_key": "chat",
+      "feature": "attachment",
+      "action": "upload",
+      "title": "Upload Attachments",
+      "title_i18n": "authz.perms.chat.attachment.upload",
+      "description": "Upload files to conversations",
+      "ui": {
+        "routes": [],
+        "buttons": ["chat-upload-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/chat/attachments", "method": "POST"}
+        ]
+      }
+    },
+
+    {
+      "key": "playground.test.view",
+      "module_key": "playground",
+      "feature": "test",
+      "action": "view",
+      "title": "View Playground",
+      "title_i18n": "authz.perms.playground.test.view",
+      "description": "Access playground interface",
+      "ui": {
+        "routes": ["/dashboard/playground"],
+        "buttons": []
+      },
+      "api": {
+        "resources": []
+      }
+    },
+    {
+      "key": "playground.test.execute",
+      "module_key": "playground",
+      "feature": "test",
+      "action": "execute",
+      "title": "Execute Tests",
+      "title_i18n": "authz.perms.playground.test.execute",
+      "description": "Run tests on models (chat, embeddings, images, audio)",
+      "ui": {
+        "routes": [],
+        "buttons": ["playground-run-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/playground/chat", "method": "POST"},
+          {"path": "/api/playground/embeddings", "method": "POST"},
+          {"path": "/api/playground/images", "method": "POST"},
+          {"path": "/api/playground/audio", "method": "POST"},
+          {"path": "/api/playground/rerank", "method": "POST"}
+        ]
+      }
+    },
+
+    {
+      "key": "security.user.view",
+      "module_key": "security",
+      "feature": "user",
+      "action": "view",
+      "title": "View Users",
+      "title_i18n": "authz.perms.security.user.view",
+      "description": "View user list",
+      "ui": {
+        "routes": ["/dashboard/permissions/users"],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/authz/users", "method": "GET"},
+          {"path": "/api/v1/authz/users/{userId}", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "security.user.manage",
+      "module_key": "security",
+      "feature": "user",
+      "action": "manage",
+      "title": "Manage Users",
+      "title_i18n": "authz.perms.security.user.manage",
+      "description": "Assign roles to users",
+      "ui": {
+        "routes": [],
+        "buttons": ["user-assign-roles-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/authz/users/{userId}/roles", "method": "POST"},
+          {"path": "/api/v1/authz/users/{userId}/roles", "method": "DELETE"}
+        ]
+      }
+    },
+    {
+      "key": "security.role.view",
+      "module_key": "security",
+      "feature": "role",
+      "action": "view",
+      "title": "View Roles",
+      "title_i18n": "authz.perms.security.role.view",
+      "description": "View role list and permissions",
+      "ui": {
+        "routes": ["/dashboard/permissions/roles"],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/authz/roles", "method": "GET"},
+          {"path": "/api/v1/authz/roles/{roleId}", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "security.role.create",
+      "module_key": "security",
+      "feature": "role",
+      "action": "create",
+      "title": "Create Role",
+      "title_i18n": "authz.perms.security.role.create",
+      "description": "Create new roles",
+      "ui": {
+        "routes": [],
+        "buttons": ["role-create-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/authz/roles", "method": "POST"}
+        ]
+      }
+    },
+    {
+      "key": "security.role.update",
+      "module_key": "security",
+      "feature": "role",
+      "action": "update",
+      "title": "Update Role",
+      "title_i18n": "authz.perms.security.role.update",
+      "description": "Update role configuration",
+      "ui": {
+        "routes": [],
+        "buttons": ["role-edit-btn", "role-permissions-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/authz/roles/{roleId}", "method": "PUT"},
+          {"path": "/api/v1/authz/roles/{roleId}", "method": "PATCH"},
+          {"path": "/api/v1/authz/roles/{roleId}/permissions", "method": "POST"}
+        ]
+      }
+    },
+    {
+      "key": "security.role.delete",
+      "module_key": "security",
+      "feature": "role",
+      "action": "delete",
+      "title": "Delete Role",
+      "title_i18n": "authz.perms.security.role.delete",
+      "description": "Delete roles",
+      "ui": {
+        "routes": [],
+        "buttons": ["role-delete-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/authz/roles/{roleId}", "method": "DELETE"}
+        ]
+      }
+    },
+    {
+      "key": "security.module.view",
+      "module_key": "security",
+      "feature": "module",
+      "action": "view",
+      "title": "View Modules",
+      "title_i18n": "authz.perms.security.module.view",
+      "description": "View module settings",
+      "ui": {
+        "routes": ["/dashboard/permissions/modules"],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/authz/modules", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "security.module.manage",
+      "module_key": "security",
+      "feature": "module",
+      "action": "manage",
+      "title": "Manage Modules",
+      "title_i18n": "authz.perms.security.module.manage",
+      "description": "Enable/disable modules",
+      "ui": {
+        "routes": [],
+        "buttons": ["module-toggle-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/authz/modules/{moduleKey}", "method": "PUT"},
+          {"path": "/api/v1/authz/tenant-modules", "method": "POST"}
+        ]
+      }
+    },
+    {
+      "key": "security.permission.view",
+      "module_key": "security",
+      "feature": "permission",
+      "action": "view",
+      "title": "View Permissions",
+      "title_i18n": "authz.perms.security.permission.view",
+      "description": "View permission catalog",
+      "ui": {
+        "routes": ["/dashboard/permissions"],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/authz/permissions", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "security.audit.view",
+      "module_key": "security",
+      "feature": "audit",
+      "action": "view",
+      "title": "View Audit Logs",
+      "title_i18n": "authz.perms.security.audit.view",
+      "description": "View audit log history",
+      "ui": {
+        "routes": ["/dashboard/permissions/audit"],
+        "buttons": []
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/authz/audit-logs", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "security.export.execute",
+      "module_key": "security",
+      "feature": "export",
+      "action": "execute",
+      "title": "Export Configuration",
+      "title_i18n": "authz.perms.security.export.execute",
+      "description": "Export roles and permissions as JSON",
+      "ui": {
+        "routes": [],
+        "buttons": ["authz-export-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/authz/export", "method": "GET"}
+        ]
+      }
+    },
+    {
+      "key": "security.import.execute",
+      "module_key": "security",
+      "feature": "import",
+      "action": "execute",
+      "title": "Import Configuration",
+      "title_i18n": "authz.perms.security.import.execute",
+      "description": "Import roles and permissions from JSON",
+      "ui": {
+        "routes": [],
+        "buttons": ["authz-import-btn"]
+      },
+      "api": {
+        "resources": [
+          {"path": "/api/v1/authz/import", "method": "POST"}
+        ]
+      }
+    }
+  ],
+
+  "role_templates": [
+    {
+      "name": "super_admin",
+      "title": "Super Administrator",
+      "title_i18n": "authz.roles.super_admin",
+      "description": "Full access to all features and settings",
+      "description_i18n": "authz.roles.super_admin_desc",
+      "is_system": true,
+      "included_permissions": ["*"],
+      "excluded_permissions": []
+    },
+    {
+      "name": "admin",
+      "title": "Administrator",
+      "title_i18n": "authz.roles.admin",
+      "description": "Administrative access without security management",
+      "description_i18n": "authz.roles.admin_desc",
+      "is_system": true,
+      "included_permissions": [
+        "dashboard.*",
+        "node.*",
+        "market.*",
+        "deploy.*",
+        "forward.*",
+        "chat.*",
+        "playground.*"
+      ],
+      "excluded_permissions": [
+        "security.role.*",
+        "security.module.*",
+        "security.import.*",
+        "security.export.*"
+      ]
+    },
+    {
+      "name": "operator",
+      "title": "Operator",
+      "title_i18n": "authz.roles.operator",
+      "description": "Operational access for day-to-day tasks",
+      "description_i18n": "authz.roles.operator_desc",
+      "is_system": true,
+      "included_permissions": [
+        "dashboard.overview.view",
+        "dashboard.monitoring.view",
+        "node.node.view",
+        "node.node.execute",
+        "node.job.view",
+        "node.job.execute",
+        "market.model.view",
+        "market.bookmark.*",
+        "deploy.deployment.view",
+        "deploy.deployment.execute",
+        "forward.*.view",
+        "chat.conversation.*",
+        "playground.*"
+      ],
+      "excluded_permissions": []
+    },
+    {
+      "name": "viewer",
+      "title": "Viewer",
+      "title_i18n": "authz.roles.viewer",
+      "description": "Read-only access to view resources",
+      "description_i18n": "authz.roles.viewer_desc",
+      "is_system": true,
+      "included_permissions": [
+        "dashboard.overview.view",
+        "node.node.view",
+        "node.job.view",
+        "market.model.view",
+        "deploy.deployment.view",
+        "forward.*.view",
+        "chat.conversation.view"
+      ],
+      "excluded_permissions": []
+    },
+    {
+      "name": "developer",
+      "title": "Developer",
+      "title_i18n": "authz.roles.developer",
+      "description": "Development and deployment access",
+      "description_i18n": "authz.roles.developer_desc",
+      "is_system": true,
+      "included_permissions": [
+        "dashboard.*",
+        "market.model.view",
+        "market.bookmark.*",
+        "deploy.*",
+        "forward.upstream.view",
+        "forward.model.view",
+        "forward.apikey.view",
+        "chat.*",
+        "playground.*"
+      ],
+      "excluded_permissions": []
+    },
+    {
+      "name": "chat_user",
+      "title": "Chat User",
+      "title_i18n": "authz.roles.chat_user",
+      "description": "Basic chat access only",
+      "description_i18n": "authz.roles.chat_user_desc",
+      "is_system": true,
+      "included_permissions": [
+        "chat.conversation.*",
+        "chat.profile.view",
+        "chat.attachment.upload"
+      ],
+      "excluded_permissions": []
+    }
+  ],
+
+  "actions": [
+    {"key": "view", "title": "View", "title_i18n": "authz.actions.view", "description": "Read access"},
+    {"key": "create", "title": "Create", "title_i18n": "authz.actions.create", "description": "Create new resources"},
+    {"key": "update", "title": "Update", "title_i18n": "authz.actions.update", "description": "Modify existing resources"},
+    {"key": "delete", "title": "Delete", "title_i18n": "authz.actions.delete", "description": "Remove resources"},
+    {"key": "execute", "title": "Execute", "title_i18n": "authz.actions.execute", "description": "Trigger actions"},
+    {"key": "manage", "title": "Manage", "title_i18n": "authz.actions.manage", "description": "Full management access"},
+    {"key": "sync", "title": "Sync", "title_i18n": "authz.actions.sync", "description": "Synchronize data"},
+    {"key": "maintenance", "title": "Maintenance", "title_i18n": "authz.actions.maintenance", "description": "Maintenance operations"},
+    {"key": "cancel", "title": "Cancel", "title_i18n": "authz.actions.cancel", "description": "Cancel operations"},
+    {"key": "upload", "title": "Upload", "title_i18n": "authz.actions.upload", "description": "Upload files"}
+  ]
+}

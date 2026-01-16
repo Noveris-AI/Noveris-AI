@@ -1,0 +1,203 @@
+---
+# Docker Installation Playbook
+# Installs Docker CE and optional components on Linux nodes
+
+- name: Install Docker
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    docker_version: "{{ docker_ce_version | default('latest') }}"
+    install_compose: "{{ enable_docker_compose | default(true) }}"
+    compose_version: "{{ docker_compose_version | default('2.24.0') }}"
+    docker_users: "{{ docker_group_users | default([]) }}"
+    configure_daemon: "{{ setup_docker_daemon | default(true) }}"
+    storage_driver: "{{ docker_storage_driver | default('overlay2') }}"
+    log_driver: "{{ docker_log_driver | default('json-file') }}"
+    log_max_size: "{{ docker_log_max_size | default('100m') }}"
+    log_max_file: "{{ docker_log_max_file | default('3') }}"
+
+  tasks:
+    # Remove old Docker versions
+    - name: Remove old Docker packages (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name:
+          - docker
+          - docker-engine
+          - docker.io
+          - containerd
+          - runc
+        state: absent
+      when: ansible_os_family == "Debian"
+
+    - name: Remove old Docker packages (RHEL/CentOS)
+      ansible.builtin.yum:
+        name:
+          - docker
+          - docker-client
+          - docker-client-latest
+          - docker-common
+          - docker-latest
+          - docker-latest-logrotate
+          - docker-logrotate
+          - docker-engine
+        state: absent
+      when: ansible_os_family == "RedHat"
+
+    # Install prerequisites
+    - name: Install prerequisites (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Install prerequisites (RHEL/CentOS)
+      ansible.builtin.yum:
+        name:
+          - yum-utils
+          - device-mapper-persistent-data
+          - lvm2
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    # Add Docker repository
+    - name: Add Docker GPG key (Debian/Ubuntu)
+      ansible.builtin.apt_key:
+        url: https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Add Docker repository (Debian/Ubuntu)
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Add Docker repository (RHEL/CentOS)
+      ansible.builtin.yum_repository:
+        name: docker-ce
+        description: Docker CE Stable
+        baseurl: https://download.docker.com/linux/centos/$releasever/$basearch/stable
+        gpgcheck: yes
+        gpgkey: https://download.docker.com/linux/centos/gpg
+      when: ansible_os_family == "RedHat"
+
+    # Install Docker
+    - name: Install Docker CE (latest)
+      ansible.builtin.package:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+        state: present
+      when: docker_version == 'latest'
+
+    - name: Install Docker CE (specific version)
+      ansible.builtin.package:
+        name:
+          - "docker-ce={{ docker_version }}"
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+        state: present
+      when: docker_version != 'latest'
+
+    # Install Docker Compose
+    - name: Install Docker Compose plugin
+      ansible.builtin.package:
+        name: docker-compose-plugin
+        state: present
+      when: install_compose | bool
+      ignore_errors: yes
+
+    - name: Install Docker Compose standalone (fallback)
+      ansible.builtin.get_url:
+        url: "https://github.com/docker/compose/releases/download/v{{ compose_version }}/docker-compose-linux-x86_64"
+        dest: /usr/local/bin/docker-compose
+        mode: '0755'
+      when: install_compose | bool
+
+    # Configure Docker daemon
+    - name: Create Docker config directory
+      ansible.builtin.file:
+        path: /etc/docker
+        state: directory
+        mode: '0755'
+      when: configure_daemon | bool
+
+    - name: Configure Docker daemon
+      ansible.builtin.copy:
+        content: |
+          {
+            "storage-driver": "{{ storage_driver }}",
+            "log-driver": "{{ log_driver }}",
+            "log-opts": {
+              "max-size": "{{ log_max_size }}",
+              "max-file": "{{ log_max_file }}"
+            },
+            "live-restore": true,
+            "default-ulimits": {
+              "nofile": {
+                "Name": "nofile",
+                "Hard": 65536,
+                "Soft": 65536
+              }
+            }
+          }
+        dest: /etc/docker/daemon.json
+        mode: '0644'
+      notify: restart docker
+      when: configure_daemon | bool
+
+    # Start and enable Docker
+    - name: Enable and start Docker
+      ansible.builtin.systemd:
+        name: docker
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
+    # Add users to docker group
+    - name: Add users to docker group
+      ansible.builtin.user:
+        name: "{{ item }}"
+        groups: docker
+        append: yes
+      loop: "{{ docker_users }}"
+      when: docker_users | length > 0
+
+    # Verify installation
+    - name: Verify Docker installation
+      ansible.builtin.command: docker version
+      register: docker_version_output
+      changed_when: false
+
+    - name: Verify Docker Compose installation
+      ansible.builtin.command: docker compose version
+      register: compose_version_output
+      changed_when: false
+      failed_when: false
+      when: install_compose | bool
+
+    - name: Report Docker status
+      ansible.builtin.set_fact:
+        noveris_docker:
+          docker_installed: true
+          docker_version: "{{ docker_version_output.stdout_lines[0] | default('unknown') }}"
+          compose_installed: "{{ install_compose | bool }}"
+          compose_version: "{{ compose_version_output.stdout | default('not installed') }}"
+          users_added: "{{ docker_users }}"
+
+  handlers:
+    - name: restart docker
+      ansible.builtin.systemd:
+        name: docker
+        state: restarted

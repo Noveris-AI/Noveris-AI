@@ -1,0 +1,131 @@
+---
+# Huawei Ascend NPU Driver Installation Playbook
+# Installs Ascend CANN toolkit and npu-smi
+#
+# Variables:
+#   cann_version: CANN toolkit version
+#   ascend_driver_package: Path to driver package
+#   offline_install: Use offline packages
+
+- name: Install Huawei Ascend NPU Stack
+  hosts: all
+  gather_facts: true
+  become: true
+  serial: "{{ serial | default(omit) }}"
+  vars:
+    cann_version: "7.0"
+    offline_install: false
+    ascend_install_path: /usr/local/Ascend
+    reboot_if_required: false
+
+  tasks:
+    # ==========================================================================
+    # Pre-flight Checks
+    # ==========================================================================
+    - name: Check for Huawei Ascend NPU
+      ansible.builtin.command: lspci -nn | grep -i "19e5"
+      register: ascend_pci_check
+      failed_when: false
+      changed_when: false
+
+    - name: Check if npu-smi installed
+      ansible.builtin.command: which npu-smi
+      register: npu_smi_check
+      failed_when: false
+      changed_when: false
+
+    # ==========================================================================
+    # Dependencies
+    # ==========================================================================
+    - name: Install dependencies (Ubuntu)
+      ansible.builtin.apt:
+        name:
+          - gcc
+          - g++
+          - make
+          - cmake
+          - zlib1g
+          - zlib1g-dev
+          - openssl
+          - libsqlite3-dev
+          - libssl-dev
+          - libffi-dev
+          - unzip
+          - pciutils
+          - net-tools
+          - libblas-dev
+          - gfortran
+          - libblas3
+        state: present
+        update_cache: true
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Install dependencies (RHEL/CentOS)
+      ansible.builtin.yum:
+        name:
+          - gcc
+          - gcc-c++
+          - make
+          - cmake
+          - zlib-devel
+          - openssl-devel
+          - sqlite-devel
+          - libffi-devel
+          - unzip
+          - pciutils
+          - net-tools
+          - blas-devel
+          - gcc-gfortran
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    # ==========================================================================
+    # Offline Package Installation
+    # ==========================================================================
+    - name: Check for offline packages
+      ansible.builtin.stat:
+        path: "{{ ascend_driver_package | default('/opt/ascend-packages') }}"
+      register: offline_packages
+      when: offline_install
+
+    - name: Install from offline packages
+      ansible.builtin.shell: |
+        cd {{ ascend_driver_package | default('/opt/ascend-packages') }}
+        ./Ascend-cann-toolkit_{{ cann_version }}_linux-*.run --install --quiet
+      args:
+        creates: "{{ ascend_install_path }}/ascend-toolkit/{{ cann_version }}"
+      when:
+        - offline_install
+        - offline_packages.stat.exists | default(false)
+      register: ascend_offline_install
+
+    # ==========================================================================
+    # Environment Setup
+    # ==========================================================================
+    - name: Configure Ascend environment
+      ansible.builtin.copy:
+        dest: /etc/profile.d/ascend.sh
+        content: |
+          export ASCEND_HOME={{ ascend_install_path }}
+          export PATH=$PATH:$ASCEND_HOME/ascend-toolkit/latest/bin
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ASCEND_HOME/ascend-toolkit/latest/lib64
+        mode: '0644'
+      when: npu_smi_check.rc == 0 or ascend_offline_install.changed | default(false)
+
+    # ==========================================================================
+    # Verification
+    # ==========================================================================
+    - name: Verify Ascend NPU
+      ansible.builtin.command: npu-smi info
+      register: ascend_verify
+      failed_when: false
+      changed_when: false
+
+    - name: Display installation summary
+      ansible.builtin.debug:
+        msg:
+          - "Huawei Ascend NPU Stack Installation"
+          - "CANN version: {{ cann_version }}"
+          - "Install path: {{ ascend_install_path }}"
+          - "npu-smi status: {{ 'Available' if ascend_verify.rc == 0 else 'Not available' }}"
+          - "Note: For online installation, please download packages from Huawei official site"

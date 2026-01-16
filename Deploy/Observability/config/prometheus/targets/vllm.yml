@@ -1,0 +1,10 @@
+# Example targets file for vLLM instances
+# Replace with actual vLLM service IPs/hostnames
+# vLLM default metrics port: 8000
+
+- targets:
+    - "vllm-01:8000"
+    # - "vllm-02:8000"
+  labels:
+    framework: "vllm"
+    env: "production"

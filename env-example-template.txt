@@ -1,0 +1,435 @@
+# Noveris AI - 环境变量配置模板
+# 版本: v1.0.0
+# 更新时间: 2026年1月13日
+#
+# 注意事项:
+# 1. 复制此文件为 .env 并修改相应配置
+# 2. 生产环境请确保敏感信息的安全性
+# 3. 不要将真实密码提交到版本控制系统
+# 4. 变量命名遵循前缀分组规范
+
+# =============================================================================
+# APP 应用基础配置
+# =============================================================================
+
+# 运行环境 (development/staging/production)
+# 敏感: 否 | 默认值: development | 验证: 枚举值
+APP_ENV=development
+
+# 服务端口
+# 敏感: 否 | 默认值: 8000 | 验证: 1-65535整数
+APP_PORT=8000
+
+# 应用名称
+# 敏感: 否 | 默认值: novaris-ai | 验证: 非空字符串
+APP_NAME=noveris-ai
+
+# 应用版本 (开发阶段固定为v1.0.0)
+# 敏感: 否 | 默认值: v1.0.0 | 验证: 语义化版本
+APP_VERSION=v1.0.0
+
+# 时区
+# 敏感: 否 | 默认值: UTC | 验证: 有效时区
+APP_TIMEZONE=UTC
+
+# 调试模式 (development环境启用)
+# 敏感: 否 | 默认值: false | 验证: 布尔值
+APP_DEBUG=false
+
+# 基础URL (用于生成链接)
+# 敏感: 否 | 默认值: http://localhost:8000 | 验证: 有效URL
+APP_BASE_URL=http://localhost:8000
+
+# 日志级别 (DEBUG/INFO/WARNING/ERROR)
+# 敏感: 否 | 默认值: INFO | 验证: 枚举值
+LOG_LEVEL=INFO
+
+# 日志格式 (json/text)
+# 敏感: 否 | 默认值: json | 验证: 枚举值
+LOG_FORMAT=json
+
+# =============================================================================
+# DB 数据库配置 (PostgreSQL)
+# =============================================================================
+
+# 数据库主机
+# 敏感: 否 | 默认值: localhost | 验证: 有效主机名/IP
+DB_HOST=localhost
+
+# 数据库端口
+# 敏感: 否 | 默认值: 5432 | 验证: 1-65535整数
+DB_PORT=5432
+
+# 数据库名
+# 敏感: 否 | 默认值: novaris_db | 验证: 非空字符串
+DB_NAME=noveris_db
+
+# 数据库用户名
+# 敏感: 否 | 默认值: novaris_user | 验证: 非空字符串
+DB_USER=noveris_user
+
+# 数据库密码
+# 敏感: 是 | 默认值: 无（必须设置） | 验证: 非空字符串，长度至少12位
+DB_PASSWORD=your_db_password_here
+
+# 数据库SSL模式 (disable/require/verify-ca/verify-full)
+# 敏感: 否 | 默认值: disable | 验证: 枚举值
+DB_SSL_MODE=disable
+
+# 数据库连接池大小
+# 敏感: 否 | 默认值: 10 | 验证: 正整数
+DB_POOL_SIZE=10
+
+# 数据库连接超时 (秒)
+# 敏感: 否 | 默认值: 30 | 验证: 正整数
+DB_TIMEOUT=30
+
+# =============================================================================
+# REDIS 缓存配置
+# =============================================================================
+
+# Redis主机
+# 敏感: 否 | 默认值: localhost | 验证: 有效主机名/IP
+REDIS_HOST=localhost
+
+# Redis端口
+# 敏感: 否 | 默认值: 6379 | 验证: 1-65535整数
+REDIS_PORT=6379
+
+# Redis密码
+# 敏感: 是 | 默认值: 无（必须设置） | 验证: 非空字符串
+REDIS_PASSWORD=your_redis_password_here
+
+# Redis数据库编号
+# 敏感: 否 | 默认值: 0 | 验证: 0-15整数
+REDIS_DB=0
+
+# Redis连接超时 (秒)
+# 敏感: 否 | 默认值: 5 | 验证: 正整数
+REDIS_TIMEOUT=5
+
+# Redis最大连接数
+# 敏感: 否 | 默认值: 20 | 验证: 正整数
+REDIS_MAX_CONNECTIONS=20
+
+# Redis键过期时间 (秒)
+# 敏感: 否 | 默认值: 3600 | 验证: 正整数
+REDIS_DEFAULT_TTL=3600
+
+# Redis最大内存 (开发环境用)
+# 敏感: 否 | 默认值: 256mb | 验证: 有效内存大小
+REDIS_MAX_MEMORY=256mb
+
+# Redis内存策略
+# 敏感: 否 | 默认值: allkeys-lru | 验证: 有效策略
+REDIS_MAX_MEMORY_POLICY=allkeys-lru
+
+# =============================================================================
+# MINIO 对象存储配置
+# =============================================================================
+
+# MinIO服务端点
+# 敏感: 否 | 默认值: http://localhost:9000 | 验证: 有效URL
+MINIO_ENDPOINT=http://localhost:9000
+
+# MinIO访问密钥
+# 敏感: 是 | 默认值: 无（必须设置） | 验证: 非空字符串，长度至少8位
+MINIO_ACCESS_KEY=your_minio_access_key_here
+
+# MinIO秘密密钥
+# 敏感: 是 | 默认值: 无（必须设置） | 验证: 非空字符串，长度至少8位
+MINIO_SECRET_KEY=your_minio_secret_key_here
+
+# MinIO存储桶名称
+# 敏感: 否 | 默认值: novaris-bucket | 验证: 有效存储桶名
+MINIO_BUCKET=noveris-bucket
+
+# MinIO区域
+# 敏感: 否 | 默认值: us-east-1 | 验证: 非空字符串
+MINIO_REGION=us-east-1
+
+# MinIO是否使用SSL
+# 敏感: 否 | 默认值: false | 验证: 布尔值
+MINIO_USE_SSL=false
+
+# MinIO签名版本 (v2/v4)
+# 敏感: 否 | 默认值: v4 | 验证: 枚举值
+MINIO_SIGNATURE_VERSION=v4
+
+# =============================================================================
+# ES Elasticsearch配置
+# =============================================================================
+
+# Elasticsearch主机
+# 敏感: 否 | 默认值: localhost | 验证: 有效主机名/IP
+ES_HOST=localhost
+
+# Elasticsearch端口
+# 敏感: 否 | 默认值: 9200 | 验证: 1-65535整数
+ES_PORT=9200
+
+# Elasticsearch用户名 (如果启用安全)
+# 敏感: 否 | 默认值: elastic | 验证: 非空字符串
+ES_USER=elastic
+
+# Elasticsearch密码
+# 敏感: 是 | 默认值: 无（必须设置） | 验证: 非空字符串
+ES_PASSWORD=your_es_password_here
+
+# Elasticsearch索引前缀
+# 敏感: 否 | 默认值: novaris | 验证: 非空字符串
+ES_INDEX_PREFIX=noveris
+
+# Elasticsearch是否使用SSL
+# 敏感: 否 | 默认值: false | 验证: 布尔值
+ES_USE_SSL=false
+
+# Elasticsearch连接超时 (秒)
+# 敏感: 否 | 默认值: 30 | 验证: 正整数
+ES_TIMEOUT=30
+
+# Elasticsearch最大连接数
+# 敏感: 否 | 默认值: 10 | 验证: 正整数
+ES_MAX_CONNECTIONS=10
+
+# Elasticsearch堆大小 (开发环境用)
+# 敏感: 否 | 默认值: 512m | 验证: 有效内存大小
+ES_HEAP_SIZE=512m
+
+# =============================================================================
+# AUTH 认证授权配置 (Session+Cookie)
+# =============================================================================
+
+# Session密钥 (用于加密session数据)
+# 敏感: 是 | 默认值: 无（必须设置） | 验证: 32位以上随机字符串
+SESSION_SECRET_KEY=your_session_secret_key_here_32_chars_min
+
+# Session过期时间 (秒)
+# 敏感: 否 | 默认值: 3600 | 验证: 正整数
+SESSION_TTL=3600
+
+# Session Cookie名称
+# 敏感: 否 | 默认值: session_id | 验证: 非空字符串
+SESSION_COOKIE_NAME=session_id
+
+# Session Cookie安全标志 (生产环境应为true)
+# 敏感: 否 | 默认值: false | 验证: 布尔值
+SESSION_COOKIE_SECURE=false
+
+# Session Cookie HttpOnly标志
+# 敏感: 否 | 默认值: true | 验证: 布尔值
+SESSION_COOKIE_HTTPONLY=true
+
+# Session Cookie SameSite策略 (strict/lax/none)
+# 敏感: 否 | 默认值: strict | 验证: 枚举值
+SESSION_COOKIE_SAMESITE=strict
+
+# 密码哈希轮数 (bcrypt)
+# 敏感: 否 | 默认值: 12 | 验证: 8-15整数
+PASSWORD_HASH_ROUNDS=12
+
+# 密码重试限制次数
+# 敏感: 否 | 默认值: 5 | 验证: 正整数
+PASSWORD_MAX_ATTEMPTS=5
+
+# 密码重试锁定时间 (秒)
+# 敏感: 否 | 默认值: 900 | 验证: 正整数
+PASSWORD_LOCKOUT_DURATION=900
+
+# =============================================================================
+# OBS 可观测性配置
+# =============================================================================
+
+# 启用Prometheus指标
+# 敏感: 否 | 默认值: true | 验证: 布尔值
+METRICS_ENABLED=true
+
+# Prometheus指标端口
+# 敏感: 否 | 默认值: 8001 | 验证: 1-65535整数
+METRICS_PORT=8001
+
+# 启用结构化日志
+# 敏感: 否 | 默认值: true | 验证: 布尔值
+STRUCTURED_LOGGING_ENABLED=true
+
+# 日志输出目标 (stdout/file/both)
+# 敏感: 否 | 默认值: stdout | 验证: 枚举值
+LOG_OUTPUT=stdout
+
+# 日志文件路径 (当LOG_OUTPUT包含file时)
+# 敏感: 否 | 默认值: /var/log/noveris/app.log | 验证: 有效路径
+LOG_FILE_PATH=/var/log/noveris/app.log
+
+# 启用链路追踪
+# 敏感: 否 | 默认值: true | 验证: 布尔值
+TRACING_ENABLED=true
+
+# Jaeger收集器端点
+# 敏感: 否 | 默认值: http://localhost:14268/api/traces | 验证: 有效URL
+JAEGER_ENDPOINT=http://localhost:14268/api/traces
+
+# 链路追踪采样率 (0.0-1.0)
+# 敏感: 否 | 默认值: 0.1 | 验证: 0.0-1.0浮点数
+TRACING_SAMPLE_RATE=0.1
+
+# 启用健康检查端点
+# 敏感: 否 | 默认值: true | 验证: 布尔值
+HEALTH_CHECK_ENABLED=true
+
+# =============================================================================
+# RATE 限流配置
+# =============================================================================
+
+# 启用API限流
+# 敏感: 否 | 默认值: true | 验证: 布尔值
+RATE_LIMIT_ENABLED=true
+
+# 默认API限流 (请求/分钟)
+# 敏感: 否 | 默认值: 60 | 验证: 正整数
+RATE_LIMIT_DEFAULT=60
+
+# 登录接口限流 (请求/分钟)
+# 敏感: 否 | 默认值: 5 | 验证: 正整数
+RATE_LIMIT_LOGIN=5
+
+# 注册接口限流 (请求/分钟)
+# 敏感: 否 | 默认值: 3 | 验证: 正整数
+RATE_LIMIT_REGISTER=3
+
+# 文件上传限流 (请求/分钟)
+# 敏感: 否 | 默认值: 10 | 验证: 正整数
+RATE_LIMIT_UPLOAD=10
+
+# =============================================================================
+# SEC 安全配置
+# =============================================================================
+
+# 启用CORS
+# 敏感: 否 | 默认值: true | 验证: 布尔值
+CORS_ENABLED=true
+
+# CORS允许的源 (用逗号分隔)
+# 敏感: 否 | 默认值: http://localhost:3000 | 验证: 有效URL列表
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+
+# 启用CSRF保护
+# 敏感: 否 | 默认值: true | 验证: 布尔值
+CSRF_ENABLED=true
+
+# CSRF Token过期时间 (秒)
+# 敏感: 否 | 默认值: 3600 | 验证: 正整数
+CSRF_TOKEN_TTL=3600
+
+# 文件上传大小限制 (MB)
+# 敏感: 否 | 默认值: 10 | 验证: 正整数
+FILE_UPLOAD_MAX_SIZE=10
+
+# 允许的文件类型 (用逗号分隔的MIME类型)
+# 敏感: 否 | 默认值: image/jpeg,image/png,image/gif,text/plain,application/pdf | 验证: 有效MIME类型
+FILE_ALLOWED_TYPES=image/jpeg,image/png,image/gif,text/plain,application/pdf
+
+# =============================================================================
+# 部署相关配置
+# =============================================================================
+
+# Docker镜像标签
+# 敏感: 否 | 默认值: latest | 验证: 非空字符串
+IMAGE_TAG=latest
+
+# 容器内存限制 - PostgreSQL
+# 敏感: 否 | 默认值: 512M | 验证: 有效内存大小
+POSTGRES_MEMORY_LIMIT=512M
+
+# 容器内存限制 - Redis
+# 敏感: 否 | 默认值: 512M | 验证: 有效内存大小
+REDIS_MEMORY_LIMIT=512M
+
+# 容器内存限制 - MinIO
+# 敏感: 否 | 默认值: 1G | 验证: 有效内存大小
+MINIO_MEMORY_LIMIT=1G
+
+# 容器内存限制 - Elasticsearch
+# 敏感: 否 | 默认值: 1G | 验证: 有效内存大小
+ES_MEMORY_LIMIT=1G
+
+# 容器内存限制 - Backend
+# 敏感: 否 | 默认值: 512M | 验证: 有效内存大小
+BACKEND_MEMORY_LIMIT=512M
+
+# 容器内存限制 - Frontend
+# 敏感: 否 | 默认值: 256M | 验证: 有效内存大小
+FRONTEND_MEMORY_LIMIT=256M
+
+# =============================================================================
+# 第三方服务配置 (示例)
+# =============================================================================
+
+# SMTP服务器配置 (用于邮件发送)
+# SMTP_HOST=smtp.gmail.com
+# SMTP_PORT=587
+# SMTP_USER=your_email@gmail.com
+# SMTP_PASSWORD=your_app_password_here
+# SMTP_USE_TLS=true
+
+# OAuth配置 (如需要)
+# OAUTH_GOOGLE_CLIENT_ID=your_google_client_id
+# OAUTH_GOOGLE_CLIENT_SECRET=your_google_client_secret
+# OAUTH_GITHUB_CLIENT_ID=your_github_client_id
+# OAUTH_GITHUB_CLIENT_SECRET=your_github_client_secret
+
+# 外部API密钥 (如需要)
+# EXTERNAL_API_KEY=your_external_api_key_here
+# EXTERNAL_API_BASE_URL=https://api.external-service.com
+
+# =============================================================================
+# 功能开关 (Feature Flags)
+# =============================================================================
+
+# 启用用户注册功能
+# 敏感: 否 | 默认值: true | 验证: 布尔值
+FEATURE_USER_REGISTRATION=true
+
+# 启用文件上传功能
+# 敏感: 否 | 默认值: true | 验证: 布尔值
+FEATURE_FILE_UPLOAD=true
+
+# 启用搜索功能
+# 敏感: 否 | 默认值: true | 验证: 布尔值
+FEATURE_SEARCH=true
+
+# 启用通知功能
+# 敏感: 否 | 默认值: false | 验证: 布尔值
+FEATURE_NOTIFICATIONS=false
+
+# 启用分析功能
+# 敏感: 否 | 默认值: false | 验证: 布尔值
+FEATURE_ANALYTICS=false
+
+# 启用SSO登录功能 (Frontend)
+# 敏感: 否 | 默认值: false | 验证: 布尔值
+VITE_SSO_ENABLED=false
+
+# =============================================================================
+# 环境特定配置
+# =============================================================================
+
+# 开发环境特定配置
+# APP_DEBUG=true
+# LOG_LEVEL=DEBUG
+# CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+
+# 测试环境特定配置
+# APP_ENV=staging
+# DB_HOST=db.staging.internal
+# REDIS_HOST=redis.staging.internal
+# MINIO_ENDPOINT=https://minio.staging.internal
+
+# 生产环境特定配置
+# APP_ENV=production
+# APP_DEBUG=false
+# LOG_LEVEL=INFO
+# SESSION_COOKIE_SECURE=true
+# DB_SSL_MODE=require
+# REDIS_PASSWORD=<生产Redis密码>
+# MINIO_USE_SSL=true
+# ES_USE_SSL=true

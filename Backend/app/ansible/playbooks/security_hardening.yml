@@ -1,0 +1,207 @@
+---
+# System Security Hardening Playbook
+# Applies security best practices to Linux nodes
+
+- name: System Security Hardening
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    disable_root_login: "{{ disable_root_ssh | default(true) }}"
+    enable_fail2ban: "{{ install_fail2ban | default(true) }}"
+    configure_firewall: "{{ setup_firewall | default(true) }}"
+    allowed_ssh_users: "{{ ssh_allowed_users | default([]) }}"
+    ssh_port: "{{ custom_ssh_port | default(22) }}"
+
+  tasks:
+    # SSH Hardening
+    - name: Backup sshd_config
+      ansible.builtin.copy:
+        src: /etc/ssh/sshd_config
+        dest: /etc/ssh/sshd_config.backup
+        remote_src: yes
+        mode: '0600'
+
+    - name: Disable root SSH login
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin no'
+      notify: restart sshd
+      when: disable_root_login | bool
+
+    - name: Disable password authentication
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PasswordAuthentication'
+        line: 'PasswordAuthentication no'
+      notify: restart sshd
+
+    - name: Enable public key authentication
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PubkeyAuthentication'
+        line: 'PubkeyAuthentication yes'
+      notify: restart sshd
+
+    - name: Set SSH protocol version
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?Protocol'
+        line: 'Protocol 2'
+      notify: restart sshd
+
+    - name: Configure SSH port
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?Port'
+        line: "Port {{ ssh_port }}"
+      notify: restart sshd
+      when: ssh_port != 22
+
+    - name: Restrict SSH users
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?AllowUsers'
+        line: "AllowUsers {{ allowed_ssh_users | join(' ') }}"
+      notify: restart sshd
+      when: allowed_ssh_users | length > 0
+
+    # Fail2ban Installation
+    - name: Install fail2ban
+      ansible.builtin.package:
+        name: fail2ban
+        state: present
+      when: enable_fail2ban | bool
+
+    - name: Configure fail2ban for SSH
+      ansible.builtin.copy:
+        content: |
+          [sshd]
+          enabled = true
+          port = {{ ssh_port }}
+          filter = sshd
+          logpath = /var/log/auth.log
+          maxretry = 5
+          bantime = 3600
+          findtime = 600
+        dest: /etc/fail2ban/jail.d/sshd.local
+        mode: '0644'
+      notify: restart fail2ban
+      when: enable_fail2ban | bool
+
+    - name: Enable and start fail2ban
+      ansible.builtin.systemd:
+        name: fail2ban
+        enabled: yes
+        state: started
+      when: enable_fail2ban | bool
+
+    # Firewall Configuration (UFW for Debian, firewalld for RHEL)
+    - name: Install UFW (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name: ufw
+        state: present
+      when:
+        - configure_firewall | bool
+        - ansible_os_family == "Debian"
+
+    - name: Allow SSH through UFW
+      community.general.ufw:
+        rule: allow
+        port: "{{ ssh_port }}"
+        proto: tcp
+      when:
+        - configure_firewall | bool
+        - ansible_os_family == "Debian"
+
+    - name: Enable UFW
+      community.general.ufw:
+        state: enabled
+        policy: deny
+        direction: incoming
+      when:
+        - configure_firewall | bool
+        - ansible_os_family == "Debian"
+
+    - name: Configure firewalld (RHEL/CentOS)
+      ansible.posix.firewalld:
+        port: "{{ ssh_port }}/tcp"
+        permanent: yes
+        state: enabled
+        immediate: yes
+      when:
+        - configure_firewall | bool
+        - ansible_os_family == "RedHat"
+      ignore_errors: yes
+
+    # System Updates Configuration
+    - name: Configure automatic security updates (Ubuntu)
+      ansible.builtin.apt:
+        name: unattended-upgrades
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Enable automatic security updates (Ubuntu)
+      ansible.builtin.copy:
+        content: |
+          APT::Periodic::Update-Package-Lists "1";
+          APT::Periodic::Unattended-Upgrade "1";
+          APT::Periodic::AutocleanInterval "7";
+        dest: /etc/apt/apt.conf.d/20auto-upgrades
+        mode: '0644'
+      when: ansible_os_family == "Debian"
+
+    # Kernel Hardening
+    - name: Apply sysctl security settings
+      ansible.posix.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: yes
+      loop:
+        - { name: 'net.ipv4.conf.all.rp_filter', value: '1' }
+        - { name: 'net.ipv4.conf.default.rp_filter', value: '1' }
+        - { name: 'net.ipv4.icmp_echo_ignore_broadcasts', value: '1' }
+        - { name: 'net.ipv4.conf.all.accept_source_route', value: '0' }
+        - { name: 'net.ipv6.conf.all.accept_source_route', value: '0' }
+        - { name: 'net.ipv4.conf.all.send_redirects', value: '0' }
+        - { name: 'net.ipv4.conf.default.send_redirects', value: '0' }
+        - { name: 'net.ipv4.tcp_syncookies', value: '1' }
+        - { name: 'net.ipv4.tcp_max_syn_backlog', value: '2048' }
+
+    # File Permissions
+    - name: Secure cron directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        mode: '0700'
+        owner: root
+        group: root
+      loop:
+        - /etc/crontab
+        - /etc/cron.hourly
+        - /etc/cron.daily
+        - /etc/cron.weekly
+        - /etc/cron.monthly
+      ignore_errors: yes
+
+    - name: Report hardening status
+      ansible.builtin.set_fact:
+        noveris_hardening:
+          ssh_hardened: true
+          root_login_disabled: "{{ disable_root_login }}"
+          fail2ban_enabled: "{{ enable_fail2ban }}"
+          firewall_configured: "{{ configure_firewall }}"
+          ssh_port: "{{ ssh_port }}"
+
+  handlers:
+    - name: restart sshd
+      ansible.builtin.systemd:
+        name: sshd
+        state: restarted
+
+    - name: restart fail2ban
+      ansible.builtin.systemd:
+        name: fail2ban
+        state: restarted

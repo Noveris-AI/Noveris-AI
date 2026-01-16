@@ -1,0 +1,198 @@
+---
+# Promtail Log Agent Deployment Playbook
+# Deploys Promtail for shipping logs to Loki
+#
+# Variables:
+#   promtail_port: HTTP port (default: 9080)
+#   loki_url: Loki push URL
+#   promtail_version: Version to install
+
+- name: Deploy Promtail
+  hosts: all
+  gather_facts: true
+  become: true
+  vars:
+    promtail_port: 9080
+    promtail_version: "2.9.6"
+    loki_url: "http://loki:3100/loki/api/v1/push"
+    tenant_id: "noveris"
+
+  tasks:
+    - name: Create promtail user
+      ansible.builtin.user:
+        name: promtail
+        system: true
+        shell: /sbin/nologin
+        create_home: false
+
+    - name: Create config directory
+      ansible.builtin.file:
+        path: /etc/promtail
+        state: directory
+        mode: '0755'
+
+    - name: Create positions directory
+      ansible.builtin.file:
+        path: /var/lib/promtail
+        state: directory
+        owner: promtail
+        group: promtail
+        mode: '0755'
+
+    - name: Download Promtail
+      ansible.builtin.get_url:
+        url: "https://github.com/grafana/loki/releases/download/v{{ promtail_version }}/promtail-linux-amd64.zip"
+        dest: /tmp/promtail.zip
+        mode: '0644'
+
+    - name: Install unzip
+      ansible.builtin.package:
+        name: unzip
+        state: present
+
+    - name: Extract Promtail
+      ansible.builtin.unarchive:
+        src: /tmp/promtail.zip
+        dest: /tmp/
+        remote_src: true
+
+    - name: Install Promtail binary
+      ansible.builtin.copy:
+        src: /tmp/promtail-linux-amd64
+        dest: /usr/local/bin/promtail
+        mode: '0755'
+        remote_src: true
+
+    - name: Create Promtail configuration
+      ansible.builtin.copy:
+        dest: /etc/promtail/promtail.yml
+        mode: '0644'
+        content: |
+          server:
+            http_listen_port: {{ promtail_port }}
+            grpc_listen_port: 0
+
+          positions:
+            filename: /var/lib/promtail/positions.yaml
+
+          clients:
+            - url: {{ loki_url }}
+              tenant_id: {{ tenant_id }}
+
+          scrape_configs:
+            # System logs
+            - job_name: syslog
+              static_configs:
+                - targets:
+                    - localhost
+                  labels:
+                    job: syslog
+                    host: {{ ansible_hostname }}
+                    __path__: /var/log/syslog
+              pipeline_stages:
+                - regex:
+                    expression: '^(?P<timestamp>\w+\s+\d+\s+\d+:\d+:\d+)\s+(?P<hostname>\S+)\s+(?P<program>\S+?)(\[(?P<pid>\d+)\])?:\s+(?P<message>.*)$'
+                - labels:
+                    hostname:
+                    program:
+
+            # Auth logs
+            - job_name: auth
+              static_configs:
+                - targets:
+                    - localhost
+                  labels:
+                    job: auth
+                    host: {{ ansible_hostname }}
+                    __path__: /var/log/auth.log
+              pipeline_stages:
+                - regex:
+                    expression: '^(?P<timestamp>\w+\s+\d+\s+\d+:\d+:\d+)\s+(?P<hostname>\S+)\s+(?P<program>\S+?)(\[(?P<pid>\d+)\])?:\s+(?P<message>.*)$'
+                - labels:
+                    hostname:
+                    program:
+
+            # Kernel logs
+            - job_name: kernel
+              static_configs:
+                - targets:
+                    - localhost
+                  labels:
+                    job: kernel
+                    host: {{ ansible_hostname }}
+                    __path__: /var/log/kern.log
+
+            # Journal (systemd)
+            - job_name: journal
+              journal:
+                json: false
+                max_age: 12h
+                path: /var/log/journal
+                labels:
+                  job: journal
+                  host: {{ ansible_hostname }}
+              relabel_configs:
+                - source_labels: ['__journal__systemd_unit']
+                  target_label: 'unit'
+                - source_labels: ['__journal__hostname']
+                  target_label: 'hostname'
+                - source_labels: ['__journal_priority_keyword']
+                  target_label: 'level'
+      notify: Restart promtail
+
+    - name: Create systemd service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/promtail.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Promtail Log Agent
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=promtail
+          ExecStart=/usr/local/bin/promtail -config.file=/etc/promtail/promtail.yml
+          Restart=always
+          RestartSec=10
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Restart promtail
+
+    - name: Add promtail to adm group for log access
+      ansible.builtin.user:
+        name: promtail
+        groups: adm
+        append: true
+
+    - name: Enable and start Promtail
+      ansible.builtin.systemd:
+        name: promtail
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    - name: Verify Promtail
+      ansible.builtin.uri:
+        url: "http://localhost:{{ promtail_port }}/ready"
+        return_content: false
+      register: verify
+      failed_when: false
+      retries: 3
+      delay: 5
+
+    - name: Display summary
+      ansible.builtin.debug:
+        msg:
+          - "Promtail deployed"
+          - "Port: {{ promtail_port }}"
+          - "Loki URL: {{ loki_url }}"
+          - "Status: {{ 'Running' if verify.status | default(0) == 200 else 'Check required' }}"
+
+  handlers:
+    - name: Restart promtail
+      ansible.builtin.systemd:
+        name: promtail
+        state: restarted
+        daemon_reload: true

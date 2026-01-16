@@ -1,0 +1,65 @@
+[Unit]
+Description=Noveris Model Deployment {{ deployment_name }}
+Documentation=https://docs.vllm.ai/ https://docs.sglang.io/ https://inference.readthedocs.io/
+After=network.target
+
+[Service]
+Type=simple
+User={{ deploy_user }}
+Group={{ deploy_group }}
+WorkingDirectory={{ work_dir }}/{{ deployment_id }}
+
+# Environment variables from deployment config
+{% for env_item in env_table %}
+{% if not env_item.is_sensitive %}
+Environment="{{ env_item.name }}={{ env_item.value }}"
+{% endif %}
+{% endfor %}
+
+# GPU visibility for different accelerators
+{% if gpu_devices is defined and gpu_devices | length > 0 %}
+{% if accelerator_type == 'nvidia_gpu' %}
+Environment="CUDA_VISIBLE_DEVICES={{ gpu_devices | join(',') }}"
+{% elif accelerator_type == 'amd_gpu' %}
+Environment="HIP_VISIBLE_DEVICES={{ gpu_devices | join(',') }}"
+Environment="ROCR_VISIBLE_DEVICES={{ gpu_devices | join(',') }}"
+{% elif accelerator_type == 'ascend_npu' %}
+Environment="ASCEND_RT_VISIBLE_DEVICES={{ gpu_devices | join(',') }}"
+{% endif %}
+{% endif %}
+
+# Hugging Face environment
+Environment="HF_HOME={{ model_cache_root }}/huggingface"
+{% if hf_endpoint is defined and hf_endpoint %}
+Environment="HF_ENDPOINT={{ hf_endpoint }}"
+{% endif %}
+{% if hf_token is defined and hf_token %}
+Environment="HF_TOKEN={{ hf_token }}"
+{% endif %}
+
+# Execute the wrapper script
+ExecStart={{ framework_venv_path }}/bin/python {{ work_dir }}/{{ deployment_id }}/run.py
+
+# Logging
+StandardOutput=append:{{ log_root }}/{{ deployment_id }}/stdout.log
+StandardError=append:{{ log_root }}/{{ deployment_id }}/stderr.log
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=65536
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+ReadWritePaths={{ log_root }}/{{ deployment_id }} {{ work_dir }}/{{ deployment_id }} {{ model_cache_root }}
+
+[Install]
+WantedBy=multi-user.target

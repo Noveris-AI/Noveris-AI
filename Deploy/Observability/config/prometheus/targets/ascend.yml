@@ -1,0 +1,10 @@
+# Example targets file for Huawei Ascend NPU Exporter
+# Replace with actual NPU node IPs/hostnames
+# Ascend exporter default port: 9401
+
+- targets:
+    - "npu-node-01:9401"
+    # - "npu-node-02:9401"
+  labels:
+    vendor: "huawei_ascend"
+    env: "production"

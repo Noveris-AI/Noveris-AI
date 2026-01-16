@@ -1,0 +1,37 @@
+---
+# Connectivity Check Playbook - Quick SSH Verification
+# This is a lightweight playbook to verify SSH connectivity
+# Used by the node verification API endpoint
+
+- name: Connectivity Check
+  hosts: all
+  gather_facts: false
+  become: false
+
+  tasks:
+    - name: Verify SSH connectivity
+      ansible.builtin.ping:
+      register: ping_result
+
+    - name: Get hostname
+      ansible.builtin.command: hostname
+      register: hostname_result
+      changed_when: false
+
+    - name: Get uptime
+      ansible.builtin.command: uptime -p
+      register: uptime_result
+      changed_when: false
+      failed_when: false
+
+    - name: Report connectivity status
+      ansible.builtin.set_fact:
+        noveris_connectivity:
+          reachable: true
+          hostname: "{{ hostname_result.stdout }}"
+          uptime: "{{ uptime_result.stdout | default('unknown') }}"
+          checked_at: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Display result
+      ansible.builtin.debug:
+        msg: "Node {{ hostname_result.stdout }} is reachable. Uptime: {{ uptime_result.stdout | default('unknown') }}"
