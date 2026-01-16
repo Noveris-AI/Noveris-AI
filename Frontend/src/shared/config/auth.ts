@@ -1,17 +1,7 @@
 // Auth相关配置
 export const AUTH_CONFIG = {
-  // API模式：'mock' 或 'real'
-  API_MODE: (import.meta.env.VITE_AUTH_API_MODE as 'mock' | 'real') || 'mock',
-
   // 登录成功后的跳转路径
   REDIRECT_AFTER_LOGIN: (import.meta.env.VITE_AUTH_REDIRECT_AFTER_LOGIN as string) || '/',
-
-  // Mock模式下的模拟延迟 (毫秒)
-  MOCK_DELAY_MIN: 300,
-  MOCK_DELAY_MAX: 800,
-
-  // 是否强制模拟失败 (用于测试错误状态)
-  MOCK_FORCE_FAILURE: false,
 
   // 密码强度规则
   PASSWORD_RULES: {
@@ -76,7 +66,7 @@ export const calculatePasswordStrength = (password: string): number => {
   if (varietyCount >= 2) score += 1
   if (varietyCount >= 4) score += 1
 
-  // 额外奖励：更长的密码或更多字符类型
+  // 额外奖励:更长的密码或更多字符类型
   if (password.length >= 16) score = Math.min(score + 0.5, 4)
 
   return Math.min(Math.floor(score), 4)
@@ -113,7 +103,7 @@ export const getPasswordStrengthText = (password: string): string => {
   const details = getPasswordStrengthDetails(password)
 
   if (details.missing.length > 0) {
-    return `缺少：${details.missing.join('、')}`
+    return `缺少:${details.missing.join('、')}`
   }
 
   const strength = calculatePasswordStrength(password)

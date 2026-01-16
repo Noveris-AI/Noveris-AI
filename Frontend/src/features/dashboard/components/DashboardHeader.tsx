@@ -5,12 +5,11 @@ import { UserDropdown } from './UserDropdown'
 import { Notification } from '../types'
 
 interface DashboardHeaderProps {
-  onLogout?: () => void
   sidebarCollapsed: boolean
   notifications?: Notification[]
 }
 
-export const DashboardHeader = ({ onLogout, sidebarCollapsed, notifications = [] }: DashboardHeaderProps) => {
+export const DashboardHeader = ({ sidebarCollapsed, notifications = [] }: DashboardHeaderProps) => {
   return (
     <header className="h-16 bg-white dark:bg-stone-900 border-b border-stone-200 dark:border-stone-700 fixed top-0 right-0 left-0 z-30 flex items-center justify-between px-4">
       {/* Left spacer for sidebar */}
@@ -32,7 +31,7 @@ export const DashboardHeader = ({ onLogout, sidebarCollapsed, notifications = []
         <NotificationDropdown notifications={notifications} />
 
         {/* User Menu */}
-        <UserDropdown onLogout={onLogout} />
+        <UserDropdown />
       </div>
     </header>
   )

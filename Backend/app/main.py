@@ -111,20 +111,55 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Initialize database
     try:
         if settings.database.auto_migrate:
-            logger.info("Running database migrations")
-            # Use alembic from venv - fix path construction
+            # Quick check if migrations are needed
             venv_bin = os.path.dirname(sys.executable)
             alembic_path = os.path.join(venv_bin, "alembic")
-            subprocess.run([alembic_path, "upgrade", "head"], check=True)
+
+            # Check current revision (fast)
+            result = subprocess.run(
+                [alembic_path, "current"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+
+            # Only run migrations if not at head or if check failed
+            if result.returncode != 0 or "(head)" not in result.stdout:
+                logger.info("Running database migrations")
+                subprocess.run([alembic_path, "upgrade", "head"], check=True, timeout=30)
+                logger.info("Database migrations completed")
+            else:
+                logger.info("Database already at latest migration (head)")
+    except subprocess.TimeoutExpired:
+        logger.warning("Migration check/upgrade timed out - skipping")
     except Exception as e:
         logger.warning("Failed to run migrations", error=str(e))
 
-    # Always run init_db to ensure all tables exist (idempotent - won't recreate existing tables)
+    # Run init_db only if needed (skip in production and dev if configured)
     try:
-        await init_db()
-        logger.info("Database tables verified via init_db")
+        # Skip init_db in development if DEV_SKIP_DB_INIT=true (much faster startup)
+        # Migration checks already ensure tables exist
+        skip_init = settings.app.app_env == "development" and settings.app.dev_skip_db_init
+
+        if not skip_init and (settings.app.app_env == "development" or not settings.database.auto_migrate):
+            await init_db()
+            logger.info("Database tables verified via init_db")
+        elif skip_init:
+            logger.info("Skipping init_db for faster startup (DEV_SKIP_DB_INIT=true)")
     except Exception as init_error:
         logger.error("Failed to initialize database", error=str(init_error))
+
+    # Create super admin user if configured
+    try:
+        from app.core.init_admin import create_super_admin
+        from app.core.database import get_db
+
+        # Get a database session
+        async for db in get_db():
+            await create_super_admin(db)
+            break  # Only need one iteration
+    except Exception as admin_error:
+        logger.error("Failed to create super admin user", error=str(admin_error))
 
     # Initialize Redis connection for WebSocket support
     if settings.redis.enabled:
@@ -161,10 +196,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Shutting down application")
     stop_celery_worker()
 
-    # Close Redis connection
+    # Close Redis connections
     if hasattr(app.state, 'redis') and app.state.redis:
-        await app.state.redis.close()
-        logger.info("Redis connection closed")
+        await app.state.redis.aclose()
+        logger.info("WebSocket Redis connection closed")
+
+    # Close Redis connection pool from dependencies
+    try:
+        from app.core.dependencies import _redis_pool
+        if _redis_pool:
+            await _redis_pool.aclose()
+            logger.info("Redis connection pool closed")
+    except Exception as e:
+        logger.warning("Failed to close Redis pool", error=str(e))
 
     await close_db()
 
@@ -253,14 +297,21 @@ async def log_requests(request, call_next):
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request, exc: StarletteHTTPException):
     """Handle HTTP exceptions."""
+    # If detail is a dict (structured error), use it directly
+    if isinstance(exc.detail, dict):
+        error_content = exc.detail
+    else:
+        # Otherwise, wrap string detail in standard format
+        error_content = {
+            "code": exc.status_code,
+            "message": exc.detail,
+        }
+
     return JSONResponse(
         status_code=exc.status_code,
         content={
             "success": False,
-            "error": {
-                "code": exc.status_code,
-                "message": exc.detail,
-            },
+            "error": error_content,
             "meta": {
                 "request_id": getattr(request.state, "request_id", None),
             },

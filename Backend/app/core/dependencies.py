@@ -20,25 +20,44 @@ security = HTTPBearer(auto_error=False)
 # Redis Dependency
 # ============================================================================
 
+# Global Redis connection pool (singleton pattern)
+_redis_pool: Redis | None = None
+
+async def get_redis_pool() -> Redis:
+    """
+    Get or create global Redis connection pool.
+
+    This ensures we reuse the same connection pool across all requests
+    instead of creating a new connection for each request.
+    """
+    global _redis_pool
+
+    if _redis_pool is None:
+        _redis_pool = Redis(
+            host=settings.redis.host,
+            port=settings.redis.port,
+            password=settings.redis.password if settings.redis.password else None,
+            db=settings.redis.db,
+            encoding="utf-8",
+            decode_responses=True,
+            max_connections=settings.redis.pool_size,
+        )
+        # Test connection
+        try:
+            await _redis_pool.ping()
+        except Exception as e:
+            _redis_pool = None
+            raise RuntimeError(f"Failed to connect to Redis: {e}")
+
+    return _redis_pool
+
 async def get_redis() -> Redis:
     """
     Get Redis client for dependency injection.
 
-    In production, this should be a singleton or connection pool.
+    Returns the shared connection pool instead of creating new connections.
     """
-    redis_client = Redis(
-        host=settings.redis.host,
-        port=settings.redis.port,
-        password=settings.redis.password if settings.redis.password else None,
-        db=settings.redis.db,
-        encoding="utf-8",
-        decode_responses=True,
-        max_connections=settings.redis.pool_size,
-    )
-    try:
-        yield redis_client
-    finally:
-        await redis_client.close()
+    return await get_redis_pool()
 
 
 # Type alias for Redis dependency
@@ -74,27 +93,30 @@ async def get_current_user_optional(
     Get current user from session cookie (optional).
 
     Returns None if not authenticated, doesn't raise exception.
-
-    In development mode, accepts mock bearer token for testing.
     """
-    # Check for mock auth token in development mode
-    if settings.app.app_debug:
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer mock-dev-token-"):
-            # Create a mock session for development
-            from uuid import UUID
-            mock_session = SessionData(
-                user_id=UUID("00000000-0000-0000-0000-000000000001"),  # Mock user ID
-                tenant_id=UUID("00000000-0000-0000-0000-000000000001"),  # Mock tenant ID
-                email="dev@example.com",
-                is_superuser=True,
-                role="admin",
-            )
-            return mock_session
+    # Skip authentication for OPTIONS requests (CORS preflight)
+    if request.method == "OPTIONS":
+        return None
 
     session_id = request.cookies.get(settings.session.cookie_name)
 
+    # DEBUG: Log cookie check
+    import structlog
+    logger = structlog.get_logger(__name__)
+    logger.info(
+        "Checking auth session",
+        method=request.method,
+        session_id=session_id[:20] + "..." if session_id else None,
+        cookie_name=settings.session.cookie_name,
+        all_cookies=list(request.cookies.keys()),
+        path=request.url.path,
+        cookie_header=request.headers.get("cookie"),
+        origin=request.headers.get("origin"),
+        referer=request.headers.get("referer"),
+    )
+
     if not session_id:
+        logger.warning("No session cookie found", path=request.url.path)
         return None
 
     session = await session_manager.get(session_id)
@@ -126,9 +148,16 @@ async def get_current_user_optional(
         )
         return None
 
-    # Extend session if configured
+    # Conditional session extension: only extend if less than half TTL remaining
     if settings.session.extend_on_activity:
-        await session_manager.extend(session_id)
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        time_until_expiry = (session.expires_at - now).total_seconds()
+        ttl = settings.session.remember_ttl if session.remember_me else settings.session.ttl
+
+        # Only extend if less than 50% of TTL remains (reduces Redis writes)
+        if time_until_expiry < (ttl / 2):
+            await session_manager.extend(session_id)
 
     return session
 

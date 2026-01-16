@@ -121,7 +121,7 @@ async def list_nodes(
     for node in nodes:
         accel_summary = {}
         for acc in node.accelerators:
-            acc_type = acc.type.value
+            acc_type = acc.type
             accel_summary[acc_type] = accel_summary.get(acc_type, 0) + 1
 
         node_responses.append(NodeResponse(
@@ -131,12 +131,12 @@ async def list_nodes(
             display_name=node.display_name,
             host=node.host,
             port=node.port,
-            connection_type=node.connection_type.value,
+            connection_type=node.connection_type,
             ssh_user=node.ssh_user,
-            node_type=node.node_type.value if node.node_type else "generic",
+            node_type=node.node_type if node.node_type else "generic",
             labels=node.labels or {},
             tags=node.tags or [],
-            status=node.status.value,
+            status=node.status,
             os_release=node.os_release,
             kernel_version=node.kernel_version,
             cpu_cores=node.cpu_cores,
@@ -186,12 +186,12 @@ async def create_node(
             display_name=node.display_name,
             host=node.host,
             port=node.port,
-            connection_type=node.connection_type.value,
+            connection_type=node.connection_type,
             ssh_user=node.ssh_user,
-            node_type=node.node_type.value if node.node_type else "generic",
+            node_type=node.node_type if node.node_type else "generic",
             labels=node.labels or {},
             tags=node.tags or [],
-            status=node.status.value,
+            status=node.status,
             created_at=node.created_at,
             updated_at=node.updated_at,
             group_ids=[g.id for g in node.groups],
@@ -222,7 +222,7 @@ async def get_node(
         AcceleratorResponse(
             id=acc.id,
             node_id=acc.node_id,
-            type=acc.type.value,
+            type=acc.type,
             vendor=acc.vendor,
             model=acc.model,
             device_id=acc.device_id,
@@ -277,7 +277,7 @@ async def get_node(
         updated_at=node.updated_at,
         group_ids=[g.id for g in node.groups],
         group_names=[g.name for g in node.groups],
-        accelerator_summary={acc.type.value: 1 for acc in node.accelerators},
+        accelerator_summary={acc.type: 1 for acc in node.accelerators},
         credentials_exist=node.credentials is not None,
         bmc_configured=node.bmc_credentials is not None,
         accelerators=accelerators,
@@ -307,12 +307,12 @@ async def update_node(
             display_name=node.display_name,
             host=node.host,
             port=node.port,
-            connection_type=node.connection_type.value,
+            connection_type=node.connection_type,
             ssh_user=node.ssh_user,
-            node_type=node.node_type.value if node.node_type else "generic",
+            node_type=node.node_type if node.node_type else "generic",
             labels=node.labels or {},
             tags=node.tags or [],
-            status=node.status.value,
+            status=node.status,
             os_release=node.os_release,
             kernel_version=node.kernel_version,
             cpu_cores=node.cpu_cores,
@@ -995,7 +995,7 @@ def _job_run_to_response(job_run) -> JobRunResponse:
         created_by=job_run.created_by,
         created_by_email=job_run.created_by_email,
         target_type=job_run.target_type,
-        status=job_run.status.value,
+        status=job_run.status,
         created_at=job_run.created_at,
         started_at=job_run.started_at,
         finished_at=job_run.finished_at,

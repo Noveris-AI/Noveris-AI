@@ -39,8 +39,12 @@ class AppSettings(BaseSettings):
     app_env: Literal["development", "staging", "production"] = "development"
     app_name: str = "noveris-ai"
     app_version: str = "1.0.0"
-    app_debug: bool = False
+    app_debug: bool = True  # Auto-enabled in development
     app_tz: str = "UTC"
+
+    # Development settings
+    dev_auto_reload: bool = True  # Hot reload in development
+    dev_skip_db_init: bool = True  # Skip init_db() checks for faster startup
 
     # Frontend
     frontend_base_url: str = "http://0.0.0.0:3000"
@@ -165,8 +169,8 @@ class SessionSettings(BaseSettings):
     cookie_secure: bool = False
     cookie_httponly: bool = True
     cookie_samesite: Literal["strict", "lax", "none"] = "lax"
-    ttl: int = 86400  # 1 day
-    remember_ttl: int = 2592000  # 30 days
+    ttl: int = 1800  # 30 minutes (default session lifetime)
+    remember_ttl: int = 2592000  # 30 days (when "remember me" is checked)
     max_sessions_per_user: int = 5
     extend_on_activity: bool = True
 
@@ -226,11 +230,11 @@ class RateLimitSettings(BaseSettings):
     enabled: bool = True
     default: int = 100
     window: int = 60
-    login_attempts: int = 5
-    login_window: int = 300
+    login_attempts: int = 5  # Max failed login attempts
+    login_window: int = 600  # 10 minutes (per spec requirement)
     code_requests: int = 10
     code_window: int = 3600
-    ban_duration: int = 3600
+    ban_duration: int = 600  # 10 minutes ban duration (matches login_window)
 
 
 class VerifySettings(BaseSettings):
@@ -589,6 +593,28 @@ class MCPSettings(BaseSettings):
         return [host.strip() for host in self.allowed_server_hosts.split(",")]
 
 
+class AdminSettings(BaseSettings):
+    """Super admin user configuration for initial setup."""
+
+    model_config = SettingsConfigDict(
+        env_file=str(ENV_FILE),
+        env_prefix="ADMIN_",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    # Super admin credentials for initial setup
+    # These will be used to create a default admin user on first startup
+    email: str = "admin@noveris.ai"
+    password: str = "ChangeMe123!"
+    name: str = "Super Admin"
+
+    # Whether to create the super admin user on startup
+    # Set to False after initial setup or if you don't want auto-creation
+    auto_create: bool = True
+
+
 class Settings(BaseSettings):
     """Main settings class that aggregates all configuration sections."""
 
@@ -620,6 +646,7 @@ class Settings(BaseSettings):
     deployment: DeploymentSettings = Field(default_factory=DeploymentSettings)
     chat: ChatSettings = Field(default_factory=ChatSettings)
     mcp: MCPSettings = Field(default_factory=MCPSettings)
+    admin: AdminSettings = Field(default_factory=AdminSettings)
 
     # DOCS
     docs_enabled: bool = True

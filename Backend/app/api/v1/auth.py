@@ -99,7 +99,10 @@ async def login(
     if await rate_limit.is_banned(client_ip):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many failed attempts. Please try again later.",
+            detail={
+                "code": "RATE_LIMIT_EXCEEDED",
+                "message": "Too many failed attempts. Please try again later.",
+            },
         )
 
     # Check rate limit
@@ -116,14 +119,28 @@ async def login(
         await rate_limit.ban(client_ip)
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many login attempts. Please try again later.",
+            detail={
+                "code": "RATE_LIMIT_EXCEEDED",
+                "message": "Too many login attempts. Please try again later.",
+            },
         )
 
     # Authenticate user
     user = await auth_service.authenticate_user(credentials.email, credentials.password)
 
     if not user:
-        # Record failed attempt
+        # Check if user exists but account is disabled
+        existing_user = await auth_service.get_user_by_email(credentials.email)
+        if existing_user and not existing_user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={
+                    "code": "ACCOUNT_DISABLED",
+                    "message": "Account has been disabled. Please contact administrator.",
+                },
+            )
+
+        # Record failed attempt (invalid credentials)
         await auth_service.update_last_login(
             user=None,
             success=False,
@@ -150,16 +167,41 @@ async def login(
         remember_me=credentials.remember_me,
     )
 
+    # DEBUG: Log session creation
+    import structlog
+    logger = structlog.get_logger(__name__)
+    logger.info(
+        "Session created for login",
+        session_id=session_id,
+        user_id=str(user.id),
+        email=user.email,
+        cookie_name=settings.session.cookie_name,
+        cookie_domain=settings.session.cookie_domain or None,
+        ttl=settings.session.remember_ttl if credentials.remember_me else settings.session.ttl,
+    )
+
     # Set session cookie
+    max_age_value = settings.session.remember_ttl if credentials.remember_me else settings.session.ttl
     response.set_cookie(
         key=settings.session.cookie_name,
         value=session_id,
         httponly=settings.session.cookie_httponly,
         secure=settings.session.cookie_secure,
         samesite=settings.session.cookie_samesite,
-        max_age=settings.session.remember_ttl if credentials.remember_me else settings.session.ttl,
+        max_age=max_age_value,
         path="/",
-        domain=settings.session.cookie_domain or None,
+        domain=None,  # None = current host only (most secure, best compatibility)
+    )
+
+    logger.info(
+        "Cookie set in response",
+        cookie_name=settings.session.cookie_name,
+        httponly=settings.session.cookie_httponly,
+        secure=settings.session.cookie_secure,
+        samesite=settings.session.cookie_samesite,
+        max_age=max_age_value,
+        path="/",
+        domain="None (current host only)",
     )
 
     # Update last login
@@ -200,7 +242,7 @@ async def logout(
     response.delete_cookie(
         settings.session.cookie_name,
         path="/",
-        domain=settings.session.cookie_domain or None,
+        domain=None,  # Match the domain used when setting the cookie
     )
 
     return AuthResponse(success=True, message="Logout successful")
@@ -565,7 +607,7 @@ async def revoke_all_sessions(
         samesite=settings.session.cookie_samesite,
         max_age=settings.session.ttl,
         path="/",
-        domain=settings.session.cookie_domain or None,
+        domain=None,  # None = current host only (most secure, best compatibility)
     )
 
     return AuthResponse(

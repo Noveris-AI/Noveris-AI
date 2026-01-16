@@ -76,6 +76,7 @@ export interface RequestOptions extends Omit<RequestInit, 'body'> {
 export class BaseApiClient {
   protected readonly baseUrl: string
   protected readonly defaultTimeout: number
+  public onUnauthorized?: () => void
 
   constructor(basePath: string = '') {
     this.baseUrl = `${API_CONFIG.BASE_URL}${API_CONFIG.API_VERSION}${basePath}`
@@ -106,19 +107,13 @@ export class BaseApiClient {
 
   /**
    * Get authentication headers
-   * In development mode, uses mock token to bypass authentication
+   * Authentication is now handled via session cookies
    */
   protected getAuthHeaders(): Record<string, string> {
     const headers: Record<string, string> = {}
 
-    // Check if we're in development mode and should use mock auth
-    const useMockAuth = import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_AUTH !== 'false'
-
-    if (useMockAuth) {
-      // Mock token for development - bypasses authentication
-      headers['Authorization'] = 'Bearer mock-dev-token-for-testing'
-      console.info('[Dev Mode] Using mock authentication token')
-    }
+    // Authentication is handled via HttpOnly cookies
+    // No need to manually add auth headers
 
     return headers
   }
@@ -169,6 +164,16 @@ export class BaseApiClient {
         // Handle different status codes
         if (response.status === 204) {
           return {} as T
+        }
+
+        // Handle unauthorized (401) - trigger global unauthorized callback
+        if (response.status === 401) {
+          this.onUnauthorized?.()
+          throw new ApiError(
+            'Unauthorized - please login again',
+            401,
+            'UNAUTHORIZED'
+          )
         }
 
         if (!response.ok) {
@@ -248,5 +253,8 @@ export class BaseApiClient {
     return this.request<T>(endpoint, { method: 'DELETE' })
   }
 }
+
+// Create and export a global API client instance
+export const apiClient = new BaseApiClient()
 
 export default BaseApiClient

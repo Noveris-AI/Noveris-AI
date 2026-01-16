@@ -51,6 +51,11 @@ export const forgotPasswordSchema = z.object({
   email: emailSchema,
 })
 
+// 发送验证码表单验证
+export const sendVerificationCodeSchema = z.object({
+  email: emailSchema,
+})
+
 // 重置密码表单验证
 export const resetPasswordSchema = z
   .object({
@@ -67,4 +72,5 @@ export const resetPasswordSchema = z
 export type LoginFormData = z.infer<typeof loginSchema>
 export type RegisterFormData = z.infer<typeof registerSchema>
 export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>
+export type SendVerificationCodeFormData = z.infer<typeof sendVerificationCodeSchema>
 export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>

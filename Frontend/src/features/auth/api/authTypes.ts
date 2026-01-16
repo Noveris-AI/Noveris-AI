@@ -47,6 +47,19 @@ export interface User {
   name: string
 }
 
+export interface ChangePasswordRequest {
+  currentPassword: string
+  newPassword: string
+}
+
+export interface SessionInfo {
+  id: string
+  userAgent?: string
+  ipAddress?: string
+  createdAt: string
+  lastActiveAt: string
+}
+
 // API错误类型
 export class AuthError extends Error {
   constructor(
@@ -66,4 +79,9 @@ export interface AuthClient {
   sendVerificationCode(data: SendVerificationCodeRequest): Promise<AuthResponse>
   forgotPassword(data: ForgotPasswordRequest): Promise<AuthResponse>
   resetPassword(data: ResetPasswordRequest): Promise<AuthResponse>
+  logout(): Promise<void>
+  getCurrentUser(): Promise<User>
+  changePassword(data: ChangePasswordRequest): Promise<AuthResponse>
+  getSessions(): Promise<SessionInfo[]>
+  revokeSessions(): Promise<AuthResponse>
 }

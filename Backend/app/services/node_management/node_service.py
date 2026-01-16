@@ -179,7 +179,7 @@ class NodeService:
             ssh_user=data.ssh_user,
             labels=data.labels,
             tags=data.tags,
-            status=NodeStatus.NEW
+            status=NodeStatus.NEW.value
         )
         self.db.add(node)
         await self.db.flush()
@@ -199,7 +199,7 @@ class NodeService:
                 server_cert_validation=data.winrm_server_cert_validation,
                 kerberos_realm=data.winrm_kerberos_realm
             )
-            auth_type = AuthType.PASSWORD  # WinRM uses password-based auth primarily
+            auth_type = AuthType.PASSWORD.value  # WinRM uses password-based auth primarily
             credential = NodeCredential(
                 tenant_id=self.tenant_id,
                 node_id=node.id,
@@ -218,7 +218,7 @@ class NodeService:
                 bastion_key=data.bastion_ssh_key,
                 bastion_password=data.bastion_password
             )
-            auth_type = AuthType.SSH_KEY
+            auth_type = AuthType.SSH_KEY.value
             credential = NodeCredential(
                 tenant_id=self.tenant_id,
                 node_id=node.id,
@@ -238,7 +238,7 @@ class NodeService:
                 bastion_key=data.bastion_ssh_key,
                 bastion_password=data.bastion_password
             )
-            auth_type = AuthType.PASSWORD
+            auth_type = AuthType.PASSWORD.value
             credential = NodeCredential(
                 tenant_id=self.tenant_id,
                 node_id=node.id,
@@ -286,7 +286,7 @@ class NodeService:
             "display_name": node.display_name,
             "port": node.port,
             "ssh_user": node.ssh_user,
-            "status": node.status.value if node.status else None,
+            "status": node.status if node.status else None,
             "tags": node.tags
         }
 
@@ -319,7 +319,7 @@ class NodeService:
             "display_name": node.display_name,
             "port": node.port,
             "ssh_user": node.ssh_user,
-            "status": node.status.value if node.status else None,
+            "status": node.status if node.status else None,
             "tags": node.tags
         }
         await self._audit_log(
@@ -335,7 +335,7 @@ class NodeService:
         if not node:
             raise NodeNotFoundError(f"Node {node_id} not found")
 
-        node.status = NodeStatus.DECOMMISSIONED
+        node.status = NodeStatus.DECOMMISSIONED.value
         node.decommissioned_at = datetime.utcnow()
 
         await self.db.commit()
@@ -377,14 +377,14 @@ class NodeService:
         if not node:
             raise NodeNotFoundError(f"Node {node_id} not found")
 
-        status_before = node.status.value
+        status_before = node.status
         start_time = time.time()
         result = {
             "node_id": node_id,
             "node_name": node.name,
             "host": node.host,
             "port": node.port,
-            "connection_type": node.connection_type.value,
+            "connection_type": node.connection_type,
             "is_reachable": False,
             "ssh_reachable": False,
             "response_time_ms": None,
@@ -395,12 +395,12 @@ class NodeService:
         }
 
         # Local connection is always reachable
-        if node.connection_type == ConnectionType.LOCAL:
+        if node.connection_type == ConnectionType.LOCAL.value:
             result["is_reachable"] = True
             result["ssh_reachable"] = True
             result["response_time_ms"] = 0.0
-            if update_status and node.status != NodeStatus.DECOMMISSIONED:
-                node.status = NodeStatus.READY
+            if update_status and node.status != NodeStatus.DECOMMISSIONED.value:
+                node.status = NodeStatus.READY.value
                 node.last_seen_at = datetime.utcnow()
                 await self.db.commit()
                 result["status_after"] = NodeStatus.READY.value
@@ -421,7 +421,7 @@ class NodeService:
             result["response_time_ms"] = round(connect_time, 2)
 
             # Verify authentication based on connection type
-            if node.connection_type == ConnectionType.WINRM:
+            if node.connection_type == ConnectionType.WINRM.value:
                 # WinRM authentication verification
                 if node.credentials:
                     try:
@@ -462,18 +462,18 @@ class NodeService:
             result["error_message"] = f"Unexpected error: {str(e)}"
 
         # Update node status based on result
-        if update_status and node.status != NodeStatus.DECOMMISSIONED:
+        if update_status and node.status != NodeStatus.DECOMMISSIONED.value:
             if result["is_reachable"] and result["ssh_reachable"]:
-                node.status = NodeStatus.READY
+                node.status = NodeStatus.READY.value
                 node.last_seen_at = datetime.utcnow()
             elif result["is_reachable"]:
                 # Port reachable but SSH auth failed - might be credential issue
-                node.status = NodeStatus.NEW
+                node.status = NodeStatus.NEW.value
             else:
-                node.status = NodeStatus.UNREACHABLE
+                node.status = NodeStatus.UNREACHABLE.value
 
             await self.db.commit()
-            result["status_after"] = node.status.value
+            result["status_after"] = node.status
 
         # Audit log
         await self._audit_log(
@@ -1041,7 +1041,7 @@ class NodeService:
             }
 
             # Set connection type and user based on node connection type
-            if node.connection_type == ConnectionType.LOCAL:
+            if node.connection_type == ConnectionType.LOCAL.value:
                 host_vars["ansible_connection"] = "local"
                 host_vars["ansible_user"] = node.ssh_user or "root"
 
@@ -1215,7 +1215,7 @@ class NodeService:
             target_group_ids=[str(gid) for gid in (data.target_group_ids or [])],
             extra_vars={**template.default_vars, **data.extra_vars},
             serial=data.serial or template.default_serial,
-            status=JobStatus.PENDING,
+            status=JobStatus.PENDING.value,
             artifacts_bucket=settings.node_management.artifacts_bucket,
             artifacts_prefix=f"jobs/{datetime.utcnow().strftime('%Y/%m/%d')}/{uuid.uuid4()}"
         )
@@ -1345,12 +1345,12 @@ class NodeService:
         if not job_run:
             raise JobExecutionError(f"Job run {job_run_id} not found")
 
-        if job_run.status not in [JobStatus.PENDING, JobStatus.RUNNING]:
+        if job_run.status not in [JobStatus.PENDING.value, JobStatus.RUNNING.value]:
             raise JobExecutionError(
-                f"Cannot cancel job in {job_run.status.value} state"
+                f"Cannot cancel job in {job_run.status} state"
             )
 
-        job_run.status = JobStatus.CANCELED
+        job_run.status = JobStatus.CANCELED.value
         job_run.canceled_at = datetime.utcnow()
         job_run.canceled_by = user_id
         job_run.cancellation_reason = reason
@@ -1384,7 +1384,7 @@ class NodeService:
             .group_by(Node.status)
         )
         status_result = await self.db.execute(status_query)
-        by_status = {row[0].value: row[1] for row in status_result}
+        by_status = {row[0]: row[1] for row in status_result}
 
         # By node type
         type_query = (
@@ -1393,7 +1393,7 @@ class NodeService:
             .group_by(Node.node_type)
         )
         type_result = await self.db.execute(type_query)
-        by_type = {row[0].value if row[0] else "generic": row[1] for row in type_result}
+        by_type = {row[0] if row[0] else "generic": row[1] for row in type_result}
 
         # By accelerator type
         accel_query = (
@@ -1403,7 +1403,7 @@ class NodeService:
             .group_by(Accelerator.type)
         )
         accel_result = await self.db.execute(accel_query)
-        by_accel = {row[0].value: row[1] for row in accel_result}
+        by_accel = {row[0]: row[1] for row in accel_result}
 
         return {
             "total": total or 0,

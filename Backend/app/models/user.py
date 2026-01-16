@@ -45,6 +45,14 @@ class User(Base):
         nullable=False,
     )
 
+    # Multi-tenancy
+    tenant_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+        index=True,
+        comment="Tenant ID for multi-tenancy support"
+    )
+
     # Status
     is_active: Mapped[bool] = mapped_column(
         Boolean,
@@ -56,6 +64,13 @@ class User(Base):
         Boolean,
         default=False,
         nullable=False,
+    )
+    is_superuser: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        index=True,
+        comment="Super admin with full system access"
     )
 
     # SSO related

@@ -140,7 +140,32 @@ class SessionManager:
         # Store session data
         session_key = self._get_session_key(session_id)
         ttl = settings.session.remember_ttl if remember_me else settings.session.ttl
-        await self.redis.setex(session_key, ttl, json.dumps(session.to_dict()))
+        session_data_json = json.dumps(session.to_dict())
+
+        # DEBUG: Log session creation
+        import structlog
+        logger = structlog.get_logger(__name__)
+        logger.info(
+            "Creating session in Redis",
+            session_id=session_id,
+            session_key=session_key,
+            ttl=ttl,
+            user_id=user_id,
+            email=email,
+            created_at=session.created_at.isoformat(),
+            expires_at=session.expires_at.isoformat(),
+        )
+
+        await self.redis.setex(session_key, ttl, session_data_json)
+
+        # Verify it was stored
+        verify_data = await self.redis.get(session_key)
+        logger.info(
+            "Session storage verified",
+            session_id=session_id,
+            stored_successfully=verify_data is not None,
+            ttl_remaining=await self.redis.ttl(session_key),
+        )
 
         # Add to user's session list
         user_sessions_key = self._get_user_sessions_key(user_id)
@@ -162,16 +187,38 @@ class SessionManager:
         session_key = self._get_session_key(session_id)
         data = await self.redis.get(session_key)
 
+        # DEBUG: Log session retrieval
+        import structlog
+        logger = structlog.get_logger(__name__)
+        logger.info(
+            "Getting session from Redis",
+            session_id=session_id[:20] + "...",
+            session_key=session_key,
+            data_found=data is not None,
+        )
+
         if not data:
+            logger.warning("Session not found in Redis", session_id=session_id[:20] + "...")
             return None
 
         session = SessionData.from_dict(json.loads(data))
 
         # Check if expired
         if session.is_expired():
+            logger.warning(
+                "Session expired",
+                session_id=session_id[:20] + "...",
+                expires_at=session.expires_at.isoformat(),
+            )
             await self.destroy(session_id)
             return None
 
+        logger.info(
+            "Session retrieved successfully",
+            session_id=session_id[:20] + "...",
+            user_id=session.user_id,
+            expires_at=session.expires_at.isoformat(),
+        )
         return session
 
     async def extend(self, session_id: str) -> bool:

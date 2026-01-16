@@ -3,10 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/shared/lib/utils'
 import { useAuthz } from '@/features/authz/hooks/AuthzContext'
-
-interface UserDropdownProps {
-  onLogout?: () => void
-}
+import { useAuth } from '@/features/auth/hooks/useAuth'
 
 // Role badge color mapping
 const getRoleColor = (roleName: string): string => {
@@ -31,18 +28,26 @@ const getInitials = (displayName: string) => {
     .slice(0, 2)
 }
 
-export const UserDropdown = ({ onLogout }: UserDropdownProps) => {
+export const UserDropdown = () => {
   // All hooks must be called unconditionally at the top
   const [isOpen, setIsOpen] = useState(false)
   const navigate = useNavigate()
   const { t } = useTranslation()
   const { name, email, roles, isSuperAdmin, isLoading } = useAuthz()
+  const { logout } = useAuth()
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback(async () => {
     setIsOpen(false)
-    onLogout?.()
-    navigate('/auth/login')
-  }, [onLogout, navigate])
+    try {
+      await logout()
+      navigate('/auth/login', { replace: true })
+    } catch (error) {
+      // Error is already handled by logout function
+      console.error('Logout failed:', error)
+      // Still navigate to login page even if logout fails
+      navigate('/auth/login', { replace: true })
+    }
+  }, [logout, navigate])
 
   const handleNavigate = useCallback((path: string) => {
     setIsOpen(false)

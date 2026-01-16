@@ -21,7 +21,7 @@ class Base(DeclarativeBase):
 # Create async engine
 engine = create_async_engine(
     settings.database.dsn,
-    echo=settings.app.app_debug,
+    echo=False,  # Disable SQL logging for cleaner output (set to True to debug SQL)
     pool_size=settings.database.pool_size,
     max_overflow=settings.database.max_overflow,
 )

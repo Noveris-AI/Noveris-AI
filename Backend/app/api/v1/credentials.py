@@ -150,7 +150,7 @@ async def get_credential_status(
 
     if node.credentials:
         cred = node.credentials[0] if isinstance(node.credentials, list) else node.credentials
-        credential_type = cred.auth_type.value if cred.auth_type else None
+        credential_type = cred.auth_type if cred.auth_type else None
         key_version = cred.key_version
 
     return CredentialStatusResponse(
@@ -186,7 +186,7 @@ async def get_bulk_credential_status(
 
                 if node.credentials:
                     cred = node.credentials[0] if isinstance(node.credentials, list) else node.credentials
-                    credential_type = cred.auth_type.value if cred.auth_type else None
+                    credential_type = cred.auth_type if cred.auth_type else None
 
                 results.append({
                     "node_id": str(node_id),
@@ -323,7 +323,7 @@ async def rotate_node_credential(
 
             cred = node.credentials[0] if isinstance(node.credentials, list) else node.credentials
 
-            if cred.auth_type and cred.auth_type.value == "SSH_KEY":
+            if cred.auth_type and cred.auth_type == "SSH_KEY":
                 # Generate new SSH key pair
                 import subprocess
                 import tempfile

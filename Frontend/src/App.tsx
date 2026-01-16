@@ -3,6 +3,9 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { I18nextProvider } from 'react-i18next'
 import i18n from './i18n/config'
 import { ThemeProvider } from './shared/components/theme/ThemeProvider'
+import { AuthProvider } from './features/auth/contexts/AuthContext'
+import { useAuth } from './features/auth/hooks/useAuth'
+import { ProtectedRoute } from './shared/components/routing/ProtectedRoute'
 import AuthLayout from './shared/components/layout/AuthLayout'
 import { DashboardLayout } from './features/dashboard/components'
 import LoginPage from './features/auth/pages/LoginPage'
@@ -68,29 +71,43 @@ const LoadingFallback = () => (
   </div>
 )
 
-function App() {
-  const handleLogout = () => {
-    // Clear session cookie
-    document.cookie = 'session_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-    // Navigate to login will be handled by UserDropdown
+// Root redirect component - redirects based on auth status
+const RootRedirect = () => {
+  const { isAuthenticated, isLoading } = useAuth()
+
+  if (isLoading) {
+    return <LoadingFallback />
   }
 
+  // Redirect to dashboard if authenticated, otherwise to login
+  return <Navigate to={isAuthenticated ? '/dashboard/homepage' : '/auth/login'} replace />
+}
+
+function App() {
   return (
     <I18nextProvider i18n={i18n}>
       <Suspense fallback={<LoadingFallback />}>
         <ThemeProvider>
-          <AuthzProvider>
-          <Routes>
-            {/* Auth routes */}
-            <Route path="/auth" element={<AuthLayout />}>
-              <Route path="login" element={<LoginPage />} />
-              <Route path="register" element={<RegisterPage />} />
-              <Route path="forgot" element={<ForgotPasswordPage />} />
-              <Route path="reset" element={<ResetPasswordPage />} />
-            </Route>
+          <AuthProvider>
+            <AuthzProvider>
+              <Routes>
+                {/* Auth routes */}
+                <Route path="/auth" element={<AuthLayout />}>
+                  <Route path="login" element={<LoginPage />} />
+                  <Route path="register" element={<RegisterPage />} />
+                  <Route path="forgot" element={<ForgotPasswordPage />} />
+                  <Route path="reset" element={<ResetPasswordPage />} />
+                </Route>
 
-            {/* Dashboard routes with layout */}
-            <Route path="/dashboard" element={<DashboardLayout onLogout={handleLogout} />}>
+                {/* Dashboard routes with layout - Protected */}
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout />
+                    </ProtectedRoute>
+                  }
+                >
               <Route path="homepage" element={<DashboardPage />} />
               <Route path="monitoring" element={<MonitoringPage />} />
               <Route path="nodes" element={<NodeListPage />} />
@@ -131,17 +148,18 @@ function App() {
               <Route path="Docs" element={<DocsPage />} />
             </Route>
 
-            {/* Redirect root to dashboard homepage */}
-            <Route path="/" element={<Navigate to="/dashboard/homepage" replace />} />
+            {/* Redirect root based on auth status */}
+            <Route path="/" element={<RootRedirect />} />
 
-            {/* Redirect unknown routes to dashboard homepage */}
-            <Route path="*" element={<Navigate to="/dashboard/homepage" replace />} />
+            {/* Redirect unknown routes based on auth status */}
+            <Route path="*" element={<RootRedirect />} />
           </Routes>
           </AuthzProvider>
-        </ThemeProvider>
-      </Suspense>
-    </I18nextProvider>
-  )
+        </AuthProvider>
+      </ThemeProvider>
+    </Suspense>
+  </I18nextProvider>
+)
 }
 
 export default App

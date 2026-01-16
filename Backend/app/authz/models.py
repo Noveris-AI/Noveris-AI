@@ -21,7 +21,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -374,8 +374,8 @@ class RolePermission(Base):
     )
 
     effect: Mapped[PermissionEffect] = mapped_column(
-        Enum(PermissionEffect),
-        default=PermissionEffect.ALLOW,
+        String(10),
+        default=PermissionEffect.ALLOW.value,
         nullable=False,
     )
 
@@ -543,7 +543,7 @@ class UserPermissionOverride(Base):
     )
 
     effect: Mapped[PermissionEffect] = mapped_column(
-        Enum(PermissionEffect),
+        String(10),
         nullable=False,
     )
 

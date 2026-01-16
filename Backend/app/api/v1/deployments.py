@@ -683,7 +683,7 @@ async def get_node_accelerators(
         # Determine primary accelerator type
         accelerator_type = None
         if accelerators:
-            accelerator_type = accelerators[0].type.value
+            accelerator_type = accelerators[0].type
 
         return NodeAcceleratorsResponse(
             node_id=node.id,
@@ -693,7 +693,7 @@ async def get_node_accelerators(
             devices=[
                 AcceleratorDevice(
                     index=acc.slot or i,
-                    device_type=acc.type.value,
+                    device_type=acc.type,
                     vendor=acc.vendor or "unknown",
                     model=acc.model or "unknown",
                     memory_mb=acc.memory_mb or 0,

@@ -1,20 +1,28 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
-import { useMutation } from '@tanstack/react-query'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { AuthCard } from '../components/AuthCard'
 import { useAuthNavigation } from '../hooks/useAuthNavigation'
-import { authClient } from '../api/authClient'
+import { useAuth } from '../hooks/useAuth'
 import { loginSchema, LoginFormData } from '../validation/schemas'
 import { AUTH_CONFIG } from '@/shared/config/auth'
 import { Input } from '@/shared/components/ui/Input'
 import { Checkbox } from '@/shared/components/ui/Checkbox'
 import { Label } from '@/shared/components/ui/Label'
 import { Button } from '@/shared/components/ui/Button'
+import { useState } from 'react'
 
 const LoginPage = () => {
   const { t } = useTranslation()
-  const { goToRegister, goToForgotPassword, goToHome } = useAuthNavigation()
+  const { goToRegister, goToForgotPassword } = useAuthNavigation()
+  const { login } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [isLoading, setIsLoading] = useState(false)
+
+  // Get the redirect URL from location state or default to dashboard
+  const from = (location.state as any)?.from?.pathname || '/dashboard/homepage'
 
   const {
     register,
@@ -32,14 +40,17 @@ const LoginPage = () => {
 
   const rememberMeValue = watch('rememberMe', false)
 
-  const loginMutation = useMutation({
-    mutationFn: authClient.login,
-    onSuccess: (response) => {
-      if (response.success) {
-        goToHome()
-      }
-    },
-    onError: (error: any) => {
+  const onSubmit = async (data: LoginFormData) => {
+    setIsLoading(true)
+    try {
+      await login({
+        email: data.email,
+        password: data.password,
+        remember_me: data.rememberMe,
+      })
+      // Navigate to the original URL or dashboard
+      navigate(from, { replace: true })
+    } catch (error: any) {
       if (error.code === 'INVALID_CREDENTIALS') {
         setError('root', {
           message: t('auth.login.error.invalid'),
@@ -49,11 +60,9 @@ const LoginPage = () => {
           message: t('auth.login.error.general'),
         })
       }
-    },
-  })
-
-  const onSubmit = (data: LoginFormData) => {
-    loginMutation.mutate(data)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleSSOLogin = () => {
@@ -147,10 +156,10 @@ const LoginPage = () => {
         {/* 提交按钮 */}
         <Button
           type="submit"
-          disabled={loginMutation.isPending}
+          disabled={isLoading}
           className="w-full mt-3 text-sm"
         >
-          {loginMutation.isPending ? t('auth.login.loading') : t('auth.login.submit')}
+          {isLoading ? t('auth.login.loading') : t('auth.login.submit')}
         </Button>
 
         {/* SSO登录按钮 - 可配置显示 */}

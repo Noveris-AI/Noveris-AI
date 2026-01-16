@@ -158,12 +158,12 @@ class Node(Base):
     port = Column(Integer, default=22)  # SSH port (default 22)
 
     # Connection settings
-    connection_type = Column(Enum(ConnectionType, create_type=False), default=ConnectionType.SSH, nullable=False)
+    connection_type = Column(String(20), default=ConnectionType.SSH.value, nullable=False)
     ssh_user = Column(String(100))  # SSH username
-    status = Column(Enum(NodeStatus, create_type=False), default=NodeStatus.NEW, nullable=False)  # Index defined in __table_args__
+    status = Column(String(20), default=NodeStatus.NEW.value, nullable=False)  # Index defined in __table_args__
 
     # Organization
-    node_type = Column(Enum(NodeType, create_type=False), default=NodeType.GENERIC)
+    node_type = Column(String(20), default=NodeType.GENERIC.value)
     labels = Column(JSONB, default=dict)  # Flexible labels for scheduling
     tags = Column(ARRAY(String), default=list)  # Simple tags for filtering
 
@@ -216,7 +216,7 @@ class NodeCredential(Base):
     node_id = Column(UUID(as_uuid=True), ForeignKey("nodes.id", ondelete="CASCADE"), unique=True, nullable=False)
 
     # Authentication type
-    auth_type = Column(Enum(AuthType, create_type=False), nullable=False)
+    auth_type = Column(String(20), nullable=False)
 
     # Encrypted payload (JSON string containing key/password)
     # Structure for ssh_key: {"private_key": "...", "passphrase": "..."}
@@ -264,7 +264,7 @@ class NodeBmcCredential(Base):
     # BMC connection info
     bmc_host = Column(String(255), nullable=False)  # BMC IP/hostname
     bmc_port = Column(Integer, default=443)  # Redfish typically 443, IPMI 623
-    bmc_protocol = Column(Enum(BmcProtocol, create_type=False), default=BmcProtocol.REDFISH)
+    bmc_protocol = Column(String(20), default=BmcProtocol.REDFISH.value)
     bmc_user = Column(String(100), nullable=False)
 
     # Encrypted password
@@ -446,7 +446,7 @@ class Accelerator(Base):
     node_id = Column(UUID(as_uuid=True), ForeignKey("nodes.id", ondelete="CASCADE"), nullable=False)
 
     # Device type and identification
-    type = Column(Enum(AcceleratorType, create_type=False), nullable=False)
+    type = Column(String(30), nullable=False)
     vendor = Column(String(100))  # nvidia, amd, intel, huawei, t-head, unknown
     model = Column(String(255))  # e.g., "A100-SXM4-80GB", "MI250X"
     device_id = Column(String(100))  # PCI device ID or UUID
@@ -606,7 +606,7 @@ class JobRun(Base):
     inventory_content = Column(Text)  # Generated inventory (for debugging)
 
     # Status tracking
-    status = Column(Enum(JobStatus, create_type=False), default=JobStatus.PENDING, nullable=False)  # Index defined in __table_args__
+    status = Column(String(20), default=JobStatus.PENDING.value, nullable=False)  # Index defined in __table_args__
 
     # Timing
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

@@ -187,6 +187,25 @@ class AuthorizationService:
         if cached:
             return cached
 
+        # Check if user is super admin from User table first
+        from app.models.user import User
+        import structlog
+        logger = structlog.get_logger(__name__)
+
+        user_result = await self.db.execute(
+            select(User).where(User.id == user_id)
+        )
+        user = user_result.scalar_one_or_none()
+        is_super_admin = user.is_superuser if user else False
+
+        logger.info(
+            "Checking super admin status",
+            user_id=str(user_id),
+            user_email=user.email if user else None,
+            is_superuser=user.is_superuser if user else None,
+            is_super_admin=is_super_admin,
+        )
+
         # Get user's roles with permissions
         roles_result = await self.db.execute(
             select(UserRole)
@@ -195,8 +214,7 @@ class AuthorizationService:
         )
         user_roles = roles_result.scalars().all()
 
-        # Check if user is super admin
-        is_super_admin = False
+        # Build role summaries and also check for super_admin role
         role_summaries = []
 
         for ur in user_roles:
@@ -575,7 +593,7 @@ class AuthorizationService:
                 rp = RolePermission(
                     role_id=role.id,
                     permission_key=key,
-                    effect=PermissionEffect.ALLOW,
+                    effect=PermissionEffect.ALLOW.value,
                 )
                 self.db.add(rp)
 
@@ -992,7 +1010,7 @@ class AuthorizationService:
                 rp = RolePermission(
                     role_id=role.id,
                     permission_key=key,
-                    effect=PermissionEffect.ALLOW,
+                    effect=PermissionEffect.ALLOW.value,
                 )
                 self.db.add(rp)
 
