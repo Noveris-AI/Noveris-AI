@@ -1,0 +1,427 @@
+openapi: 3.0.3
+info:
+  title: Noveris AI Platform - Authentication API
+  description: |
+    重构后的认证API，修复session cookie传递问题，确保登录后可靠访问受保护资源。
+
+    **核心改进**:
+    - 正确设置HttpOnly cookie（domain=None）
+    - 跳过OPTIONS预检请求的认证检查
+    - 优化Redis连接池（单例模式）
+    - 添加详细调试日志
+
+    **认证方式**: Session + Cookie (HttpOnly)
+    - Cookie名称: `session_id`
+    - SameSite: Lax
+    - Secure: false (开发), true (生产)
+  version: 1.0.0
+  contact:
+    name: Noveris AI Team
+    email: api@noveris.ai
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: 开发环境
+  - url: https://api.noveris.ai/api/v1
+    description: 生产环境
+
+tags:
+  - name: Authentication
+    description: 用户认证相关操作（登录、登出、会话管理）
+
+paths:
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: 用户登录
+      description: |
+        使用邮箱和密码登录系统。成功后设置HttpOnly session cookie。
+
+        **速率限制**: 5次/10分钟（每IP+邮箱）
+        **失败处理**: 5次失败后锁定10分钟
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              normal:
+                summary: 普通登录（30分钟会话）
+                value:
+                  email: admin@noveris.ai
+                  password: admin@noveris.ai
+                  remember_me: false
+              remember_me:
+                summary: 记住我（30天会话）
+                value:
+                  email: admin@noveris.ai
+                  password: admin@noveris.ai
+                  remember_me: true
+      responses:
+        '200':
+          description: 登录成功
+          headers:
+            Set-Cookie:
+              description: Session cookie
+              schema:
+                type: string
+                example: session_id=abc123...; Path=/; HttpOnly; SameSite=Lax; Max-Age=1800
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                success: true
+                message: Login successful
+                user:
+                  id: 123e4567-e89b-12d3-a456-426614174000
+                  email: admin@noveris.ai
+                  name: Noveris
+                  is_superuser: true
+                redirect_to: http://localhost:3000
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: 用户登出
+      description: |
+        销毁当前会话并清除session cookie。
+
+        **注意**: 如果用户在多个标签页/设备登录，仅当前会话会被销毁。
+      operationId: logout
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: 登出成功
+          headers:
+            Set-Cookie:
+              description: 清除session cookie
+              schema:
+                type: string
+                example: session_id=; Path=/; Max-Age=0
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                success: true
+                message: Logout successful
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: 获取当前用户信息
+      description: |
+        返回当前登录用户的详细信息。用于前端验证登录状态。
+
+        **缓存策略**: 建议前端缓存1-5分钟
+      operationId: getCurrentUser
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: 成功返回用户信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+              example:
+                id: 123e4567-e89b-12d3-a456-426614174000
+                email: admin@noveris.ai
+                name: Noveris
+                is_active: true
+                is_verified: true
+                is_superuser: true
+                tenant_id: 00000000-0000-0000-0000-000000000001
+                created_at: "2026-01-01T00:00:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/sessions:
+    get:
+      tags:
+        - Authentication
+      summary: 查看活跃会话列表
+      description: |
+        返回当前用户的所有活跃会话（跨设备管理功能）。
+
+        **优先级**: P3（可选功能）
+      operationId: listSessions
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: 成功返回会话列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      active_sessions:
+                        type: integer
+                        description: 活跃会话数量
+                      max_sessions:
+                        type: integer
+                        description: 最大允许会话数
+              example:
+                success: true
+                data:
+                  active_sessions: 2
+                  max_sessions: 5
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    delete:
+      tags:
+        - Authentication
+      summary: 注销所有其他设备的会话
+      description: |
+        销毁除当前会话外的所有会话，用于"退出其他设备"功能。
+
+        **优先级**: P3（可选功能）
+      operationId: revokeAllSessions
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: 成功注销其他会话
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                success: true
+                message: All sessions revoked
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: session_id
+      description: |
+        Session-based authentication using HttpOnly cookie.
+        Cookie is automatically sent by browser on subsequent requests.
+
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: 用户登录邮箱（不区分大小写）
+          example: admin@noveris.ai
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: 用户密码（明文，传输层TLS加密）
+          example: admin@noveris.ai
+        remember_me:
+          type: boolean
+          default: false
+          description: 是否记住登录状态（30天 vs 30分钟）
+          example: false
+
+    LoginResponse:
+      type: object
+      required:
+        - success
+        - user
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Login successful
+        user:
+          $ref: '#/components/schemas/UserResponse'
+        redirect_to:
+          type: string
+          format: uri
+          description: 登录成功后跳转URL
+          example: http://localhost:3000
+
+    UserResponse:
+      type: object
+      required:
+        - id
+        - email
+        - name
+        - is_active
+        - is_verified
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 用户唯一标识
+          example: 123e4567-e89b-12d3-a456-426614174000
+        email:
+          type: string
+          format: email
+          example: admin@noveris.ai
+        name:
+          type: string
+          example: Noveris
+        is_active:
+          type: boolean
+          description: 账号是否激活
+          example: true
+        is_verified:
+          type: boolean
+          description: 邮箱是否验证
+          example: true
+        is_superuser:
+          type: boolean
+          description: 是否超级管理员
+          example: true
+        tenant_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: 租户ID（多租户模式）
+          example: 00000000-0000-0000-0000-000000000001
+        last_login_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 最后登录时间
+          example: "2026-01-17T10:30:00Z"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-01-01T00:00:00Z"
+
+    AuthResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Operation successful
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              enum:
+                - INVALID_CREDENTIALS
+                - ACCOUNT_DISABLED
+                - RATE_LIMIT_EXCEEDED
+                - VALIDATION_ERROR
+                - UNAUTHORIZED
+                - INTERNAL_ERROR
+              example: INVALID_CREDENTIALS
+            message:
+              type: string
+              example: Invalid email or password
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+                  type:
+                    type: string
+        meta:
+          type: object
+          properties:
+            request_id:
+              type: string
+              format: uuid
+              example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+  responses:
+    Unauthorized:
+      description: 未授权（未登录或会话已过期）
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: UNAUTHORIZED
+              message: Not authenticated
+            meta:
+              request_id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    RateLimitExceeded:
+      description: 速率限制超限
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: RATE_LIMIT_EXCEEDED
+              message: Too many login attempts. Please try again later.
+            meta:
+              request_id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    ValidationError:
+      description: 请求参数验证失败
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: VALIDATION_ERROR
+              message: Request validation failed
+              details:
+                - field: email
+                  message: value is not a valid email address
+                  type: value_error.email
+            meta:
+              request_id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
